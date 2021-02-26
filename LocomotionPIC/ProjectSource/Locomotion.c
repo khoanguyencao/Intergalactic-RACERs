@@ -27,7 +27,7 @@
 #define RIGHT 1
 #define FORWARD 2
 #define BACKWARD 3
-#define FWD_SPEED 90// speed for going straight forward(in duty cycles)
+#define FWD_SPEED 50// speed for going straight forward(in duty cycles)
 #define BKWD_SPEED 50// speed for going straight backward
 #define TURN_SPEED_1 50// speed for turning the racer on one wheel 
 #define TURN_SPEED_2 96// speed for turning racer on other wheel 
@@ -65,6 +65,12 @@ static volatile float RPMerror_L = 0;    // stores left RPM error amount
 static volatile float sumerror_L = 0;    // stores left sum of RPMerror
 static volatile float requestedduty_L;   // stores control law left motor DC 
 
+static volatile float targetRPM_R;       // stores target left motor RPM 
+static volatile float RPM_R = 0;         // stores actual left motor RPM
+static volatile float RPMerror_R = 0;    // stores left RPM error amount
+static volatile float sumerror_R = 0;    // stores left sum of RPMerror
+static volatile float requestedduty_R;   // stores control law left motor DC 
+
 static LocoState_t CurrentState;
 
 // private function declarations
@@ -79,6 +85,7 @@ void InitLeftPWM(void);
 void InitRightPWM(void);
 void InitTimer2();
 void InitTimer3(void);
+void InitTimer4(void);
 void InitTimer5(void);
 void InitInputCapture4(void);
 void InitInputCapture5(void);
@@ -118,16 +125,17 @@ bool InitLocomotion(uint8_t Priority){
     // set up for multiple interrupt vectors
 //    INTCONbits.MVEC = 1;
     
-    InitTimer2();     // initialize Timer2 for rollover counting, IC4 and IC5
-    InitTimer3();     // initialize Timer3 for OC1 and OC4
-    InitTimer5();     // initialize Timer5 for PID control
+    InitTimer2();           // initialize Timer2 for rollover counting, IC4 and IC5
+    InitInputCapture4();    // initialize IC4 for left encoder
+    InitInputCapture5();    // initialize IC5 for right encoder
     
+    InitTimer3();     // initialize Timer3 for OC1 and OC4
     InitLeftPWM();    // initialize OC1 for left wheel PWM
     InitRightPWM();   // initialize OC4 for right wheel PWM
     
-    InitInputCapture4();
-    InitInputCapture5();
-
+    InitTimer5();     // initialize Timer5 for Left PID control
+    InitTimer4();     // initialize Timer4 for Right PID Control
+     
     InitSPI();        // initialize SPI system
     
     // Post Event ES_Init to TimeCapture queue (this service)
@@ -242,6 +250,7 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
 
 
 /*--------------------------- Private Functions ---------------------------*/
+
 // sets the left or right motor to a specified speed
 void SetSpeed(uint8_t wheel, uint8_t drive, uint8_t dutycycle){
     //**************************** Left Wheel Speed **************************//
@@ -264,93 +273,51 @@ void SetSpeed(uint8_t wheel, uint8_t drive, uint8_t dutycycle){
         if (drive == FORWARD){
             LATBbits.LATB10 = 1;    // set BIN1 high
             LATBbits.LATB11 = 0;    // set BIN2 low
-            targetDC_R = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
+            targetDC_R = dutycycle;   // set new speed
         }
         
         if (drive == BACKWARD){
             LATBbits.LATB10 = 0;    // set BIN1 low
             LATBbits.LATB11 = 1;    // set BIN2 high
-            targetDC_R = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
+            targetDC_R = dutycycle;   // set new speed
         }  
     }
 }
 
 // robot drives in a circle of radius 1m
 void FollowCircle(void){
-  LATAbits.LATA2 = 1;     // set AIN1 high
-  LATAbits.LATA3 = 0;     // set AIN2 low
-  OC1RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-
-  LATBbits.LATB10 = 1;    // set BIN1 high
-  LATBbits.LATB11 = 0;    // set BIN2 low
-  OC4RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-    
-//    SetSpeed(LEFT, FORWARD, CIRC_L_SPEED);
-//    SetSpeed(RIGHT, FORWARD, CIRC_R_SPEED);
+    SetSpeed(LEFT, FORWARD, CIRC_L_SPEED);
+    SetSpeed(RIGHT, FORWARD, CIRC_R_SPEED);
 }
 
 // robot turns left
-void TurnLeft(void){
-  LATAbits.LATA2 = 1;     // set AIN1 high
-  LATAbits.LATA3 = 0;     // set AIN2 low
-  OC1RS = ((TURN_SPEED_1*PWM_PERIOD)/100) - 1;   // set new speed
-
-  LATBbits.LATB10 = 1;    // set BIN1 high
-  LATBbits.LATB11 = 0;    // set BIN2 low
-  OC4RS = ((TURN_SPEED_2*PWM_PERIOD)/100) - 1;   // set new speed
-    
-//    SetSpeed(LEFT, FORWARD, TURN_SPEED_1);
-//    SetSpeed(RIGHT, FORWARD, TURN_SPEED_2);
+void TurnLeft(void){    
+    SetSpeed(LEFT, FORWARD, TURN_SPEED_1);
+    SetSpeed(RIGHT, FORWARD, TURN_SPEED_2);
 }
 
 // robot turns right
 void TurnRight(void){
-  LATAbits.LATA2 = 1;     // set AIN1 high
-  LATAbits.LATA3 = 0;     // set AIN2 low
-  OC1RS = ((TURN_SPEED_2*PWM_PERIOD)/100) - 1;   // set new speed
-
-  LATBbits.LATB10 = 1;    // set BIN1 high
-  LATBbits.LATB11 = 0;    // set BIN2 low
-  OC4RS = ((TURN_SPEED_1*PWM_PERIOD)/100) - 1;   // set new speed
-    
-//    SetSpeed(LEFT, FORWARD, TURN_SPEED_2);
-//    SetSpeed(RIGHT, FORWARD, TURN_SPEED_1);
+    SetSpeed(LEFT, FORWARD, TURN_SPEED_2);
+    SetSpeed(RIGHT, FORWARD, TURN_SPEED_1);
 }
 
 // robot drives forward
 void DriveForward(void){
-//  LATAbits.LATA2 = 1;     // set AIN1 high
-//  LATAbits.LATA3 = 0;     // set AIN2 low
-//  OC1RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-//
-//  LATBbits.LATB10 = 1;    // set BIN1 high
-//  LATBbits.LATB11 = 0;    // set BIN2 low
-//  OC4RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-    
     SetSpeed(LEFT, FORWARD, FWD_SPEED);
     SetSpeed(RIGHT, FORWARD, FWD_SPEED);
 }
 
 // robot drives backwards
 void DriveBackward(void){
-    LATAbits.LATA2 = 0;     // set AIN1 low
-    LATAbits.LATA3 = 1;     // set AIN2 high
-    OC1RS = ((BKWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-    LATBbits.LATB10 = 0;    // set BIN1 low
-    LATBbits.LATB11 = 1;    // set BIN2 high
-    OC4RS = ((BKWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-    
-//    SetSpeed(LEFT, BACKWARD, BKWD_SPEED);
-//    SetSpeed(RIGHT, BACKWARD, BKWD_SPEED);
+    SetSpeed(LEFT, BACKWARD, BKWD_SPEED);
+    SetSpeed(RIGHT, BACKWARD, BKWD_SPEED);
 }
 
 // robot stops
 void Stop(void){
-    OC1RS = 0;   // set new speed
-    OC4RS = 0;   // set new speed
-    
-//    SetSpeed(LEFT, FORWARD, STOP_SPEED);
-//    SetSpeed(RIGHT, FORWARD, STOP_SPEED);
+    SetSpeed(LEFT, FORWARD, STOP_SPEED);
+    SetSpeed(RIGHT, FORWARD, STOP_SPEED);
 }
 
 
@@ -476,7 +443,7 @@ void InitInputCapture5(void){
     IC5CONbits.ON = 1;              // turn on IC5
 }
 
-//DONT TOUCH, IT IS WORKING
+// calculates left encoder period in ticks
 void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL7SOFT) LeftEncoder_ISR(void){
     static uint32_t rise1 = 0;          // stores first rise time
     static uint32_t rise2;              // stores second rise time
@@ -510,7 +477,7 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL7SOFT) LeftEncoder_ISR(void){
     IFS0CLR = _IFS0_IC4IF_MASK;         // clear IC4 interrupt
 }
 
-//DONT TOUCH, IT IS WORKING
+// calculates right encoder period in ticks
 void __ISR(_INPUT_CAPTURE_5_VECTOR, IPL7SOFT) RightEncoder_ISR(void){
     static uint32_t rise1 = 0;          // stores first rise time
     static uint32_t rise2;              // stores second rise time
@@ -547,7 +514,7 @@ void __ISR(_INPUT_CAPTURE_5_VECTOR, IPL7SOFT) RightEncoder_ISR(void){
 
 
 
-// function to set up Timer 5 for control law
+// function to set up Timer 5 for left motor control law
 void InitTimer5(void){
     T5CONbits.ON = 0;               // disable timer
     T5CONbits.TCS = 0;              // select internal PBCLK source
@@ -555,14 +522,14 @@ void InitTimer5(void){
     T5CONbits.TGATE = 0;            // Disable timer 5 TGATE
     TMR5 = 0;                       // clear timer 5 register
     PR5 = 390;                      // set period register to 5ms (390 ticks))
-    IPC5bits.T5IP = 4;              // set interrupt priority to 6
+    IPC5bits.T5IP = 6;              // set interrupt priority to 6
     IFS0CLR = _IFS0_T5IF_MASK;		// clear any pending interrupt
     IEC0SET = _IEC0_T5IE_MASK;		// local enable
     T5CONbits.ON = 1;               // enable timer
 }
 
 // updates left PWM control every 5ms
-void __ISR(_TIMER_5_VECTOR, IPL6SOFT) Timer5ControlLawISR(void){
+void __ISR(_TIMER_5_VECTOR, IPL6SOFT) LeftControlLawISR(void){
     
     IFS0CLR = _IFS0_T5IF_MASK;      // clear interrupt
     
@@ -570,7 +537,7 @@ void __ISR(_TIMER_5_VECTOR, IPL6SOFT) Timer5ControlLawISR(void){
     if (period_L == 0){
         return;
     }
-    LATAbits.LATA4 = 1;                 // set pin A4 high for timing
+
     // Left Wheel Control
     targetRPM_L = (targetDC_L * DC_TO_RPM);     // calculate target RPM
     RPM_L = (float)(ENCODER_TO_RPM / period_L); // calculate actual RPM
@@ -590,11 +557,55 @@ void __ISR(_TIMER_5_VECTOR, IPL6SOFT) Timer5ControlLawISR(void){
     }
     // write duty cycle
     OC1RS = (uint16_t)((requestedduty_L * PWM_PERIOD)/100);  
-    LATAbits.LATA4 = 0;                 // set pin A4 low for timing
 }
 
 
 
+
+// function to set up Timer 4 for right motor control law
+void InitTimer4(void){
+    T4CONbits.ON = 0;               // disable timer
+    T4CONbits.TCS = 0;              // select internal PBCLK source
+    T4CONbits.TCKPS = 0b111;        // select 1:256 prescale
+    T4CONbits.TGATE = 0;            // Disable timer 4 TGATE
+    TMR4 = 0;                       // clear timer 4 register
+    PR4 = 390;                      // set period register to 5ms (390 ticks))
+    IPC4bits.T4IP = 6;              // set interrupt priority to 6
+    IFS0CLR = _IFS0_T4IF_MASK;		// clear any pending interrupt
+    IEC0SET = _IEC0_T4IE_MASK;		// local enable
+    T4CONbits.ON = 1;               // enable timer
+}
+
+
+// updates right PWM control every 5ms
+void __ISR(_TIMER_4_VECTOR, IPL6SOFT) RightControlLawISR(void){
+    
+    IFS0CLR = _IFS0_T4IF_MASK;      // clear interrupt
+    
+    // don't run control law until we have a valid period
+    if (period_R == 0){
+        return;
+    }
+
+    targetRPM_R = (targetDC_R * DC_TO_RPM);     // calculate target RPM
+    RPM_R = (float)(ENCODER_TO_RPM / period_R); // calculate actual RPM
+    RPMerror_R = targetRPM_R - RPM_R;           // set RPMerror = targetRPM - RPM
+	sumerror_R += RPMerror_R;                   // update sum of error
+	requestedduty_R = (KP*((RPMerror_R) + (KI*sumerror_R))); // calculate new DC
+    
+    // if we need duty cycle to be higher
+    if (requestedduty_R > 100){
+        requestedduty_R = 100;          // set requested DC to 100
+        sumerror_R -= RPMerror_R;       // anti-windup
+    }
+    // else if we need duty cycle to be lower
+    else if (requestedduty_R < 0){
+        requestedduty_R = 0;            // set requested DC to 0
+        sumerror_R -= RPMerror_R;       // anti-windup
+    }
+    // write duty cycle
+    OC4RS = (uint16_t)((requestedduty_R * PWM_PERIOD)/100);  
+}
 
 
 
