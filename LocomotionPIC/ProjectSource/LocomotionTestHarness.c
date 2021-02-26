@@ -150,6 +150,11 @@ ES_Event_t RunLocomotionTestHarness(ES_Event_t ThisEvent)
     break;
     case ES_NEW_KEY:   // announce
     {
+        if ('p' == ThisEvent.EventParam)
+      {
+          ThisEvent.EventType = ES_PRINT;
+          PostLocomotion(ThisEvent);
+      }
         // drive straight
       if ('w' == ThisEvent.EventParam)
       {

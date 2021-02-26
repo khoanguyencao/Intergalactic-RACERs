@@ -605,7 +605,7 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="1d000000-1d03ffff"/>
         <property key="programmerToGoFilePath"
-                  value="C:/Users/meiha/Documents/Stanford/course_materials/ME218b_smart_product_application/Labs/Lab6/me218b_lab6/debug/Justu8g2POC/Justu8g2POC_ptg"/>
+                  value="C:/Users/ashle/OneDrive/Documents/GitHub/ME218B/LocomotionPIC/debug/Justu8g2POC/Justu8g2POC_ptg"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.pgmentry.voltage" value="low"/>
@@ -1349,7 +1349,7 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="1d000000-1d03ffff"/>
         <property key="programmerToGoFilePath"
-                  value="C:/Users/meiha/Documents/Stanford/course_materials/ME218b_smart_product_application/Labs/Lab6/me218b_lab6/debug/FrameworkWith_u8g2/FrameworkWith_u8g2_ptg"/>
+                  value="C:/Users/ashle/OneDrive/Documents/GitHub/ME218B/LocomotionPIC/debug/FrameworkWith_u8g2/FrameworkWith_u8g2_ptg"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.pgmentry.voltage" value="low"/>

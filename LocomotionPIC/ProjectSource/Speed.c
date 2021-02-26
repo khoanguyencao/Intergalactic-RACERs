@@ -1,6 +1,6 @@
 /*----------------------------- Include Files -----------------------------*/
 // This module
-#include "../ProjectHeaders/Locomotion.h"
+#include "../ProjectHeaders/Speed.h"
 
 // Hardware
 #include <xc.h>
@@ -53,8 +53,8 @@ static volatile uint16_t currTimeR;
 
 static volatile float targetDC_L;   // from SetSpeed(), used in control law
 static volatile float targetDC_R;   // from SetSpeed(), used in control law
-static volatile uint16_t period_L;     // from encoder IC, used in control law
-static volatile uint16_t period_R;     // from encoder IC, used in control law
+static volatile float period_L;     // from encoder IC, used in control law
+static volatile float period_R;     // from encoder IC, used in control law
 
 static volatile CombTime_t combTimeL; // combined IC time with rollover counted
 static volatile CombTime_t combTimeR;
@@ -105,8 +105,6 @@ bool InitLocomotion(uint8_t Priority){
     ANSELA = 0;
     ANSELB = 0;
     
-    TRISAbits.TRISA4 = 0;   // for checking if ISRs are firing
-    
     // enable interrupts globally
     __builtin_enable_interrupts();
     // set up for multiple interrupt vectors
@@ -114,13 +112,13 @@ bool InitLocomotion(uint8_t Priority){
     
     InitTimer2();     // initialize Timer2 for rollover counting, IC4 and IC5
     InitTimer3();     // initialize Timer3 for OC1 and OC4
-//    InitTimer5();     // initialize Timer5 for PID control
+    InitTimer5();     // initialize Timer5 for PID control
     
     InitLeftPWM();    // initialize OC1 for left wheel PWM
     InitRightPWM();   // initialize OC4 for right wheel PWM
     
     InitInputCapture4();
-    InitInputCapture5();
+    //InitInputCapture5();
 
     InitSPI();        // initialize SPI system
     
@@ -196,8 +194,8 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
     {
       if (ThisEvent.EventType == ES_PRINT)
       {
-          printf("L %u\r\n", period_L);
-          printf("R %u\r\n", period_R);
+          printf("L %u\r\n", combTimeL.byBytes.high);
+          printf("R %u\r\n", combTimeR.byBytes.high);
       }
       if (ThisEvent.EventType == ES_GOFORWARD)
       {
@@ -236,51 +234,18 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
 
 
 /*--------------------------- Private Functions ---------------------------*/
-// sets the left or right motor to a specified speed
-void SetSpeed(uint8_t wheel, uint8_t drive, uint8_t dutycycle){
-    //**************************** Left Wheel Speed **************************//
-    if (wheel == LEFT){
-        if (drive == FORWARD){
-            LATAbits.LATA2 = 1;     // set AIN1 high
-            LATAbits.LATA3 = 0;     // set AIN2 low
-            targetDC_L = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
-        }
-        
-        if (drive == BACKWARD){
-            LATAbits.LATA2 = 0;     // set AIN1 low
-            LATAbits.LATA3 = 1;     // set AIN2 high
-            targetDC_L = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
-        }
-        
-    }
-    //*************************** Right Wheel Speed **************************//
-    if (wheel == RIGHT){
-        if (drive == FORWARD){
-            LATBbits.LATB10 = 1;    // set BIN1 high
-            LATBbits.LATB11 = 0;    // set BIN2 low
-            targetDC_R = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
-        }
-        
-        if (drive == BACKWARD){
-            LATBbits.LATB10 = 0;    // set BIN1 low
-            LATBbits.LATB11 = 1;    // set BIN2 high
-            targetDC_R = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
-        }  
-    }
-}
-
 // robot drives in a circle of radius 1m
 void FollowCircle(void){
-  LATAbits.LATA2 = 1;     // set AIN1 high
-  LATAbits.LATA3 = 0;     // set AIN2 low
-  OC1RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-
-  LATBbits.LATB10 = 1;    // set BIN1 high
-  LATBbits.LATB11 = 0;    // set BIN2 low
-  OC4RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
+//  LATAbits.LATA2 = 1;     // set AIN1 high
+//  LATAbits.LATA3 = 0;     // set AIN2 low
+//  OC1RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
+//
+//  LATBbits.LATB10 = 1;    // set BIN1 high
+//  LATBbits.LATB11 = 0;    // set BIN2 low
+//  OC4RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
     
-//    SetSpeed(LEFT, FORWARD, CIRC_L_SPEED);
-//    SetSpeed(RIGHT, FORWARD, CIRC_R_SPEED);
+    SetSpeed(LEFT, FORWARD, CIRC_L_SPEED);
+    SetSpeed(RIGHT, FORWARD, CIRC_R_SPEED);
 }
 
 // robot turns left
@@ -313,16 +278,16 @@ void TurnRight(void){
 
 // robot drives forward
 void DriveForward(void){
-  LATAbits.LATA2 = 1;     // set AIN1 high
-  LATAbits.LATA3 = 0;     // set AIN2 low
-  OC1RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-
-  LATBbits.LATB10 = 1;    // set BIN1 high
-  LATBbits.LATB11 = 0;    // set BIN2 low
-  OC4RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
+//  LATAbits.LATA2 = 1;     // set AIN1 high
+//  LATAbits.LATA3 = 0;     // set AIN2 low
+//  OC1RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
+//
+//  LATBbits.LATB10 = 1;    // set BIN1 high
+//  LATBbits.LATB11 = 0;    // set BIN2 low
+//  OC4RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
     
-//    SetSpeed(LEFT, FORWARD, FWD_SPEED);
-//    SetSpeed(RIGHT, FORWARD, FWD_SPEED);
+    SetSpeed(LEFT, FORWARD, FWD_SPEED);
+    SetSpeed(RIGHT, FORWARD, FWD_SPEED);
 }
 
 // robot drives backwards
@@ -347,212 +312,37 @@ void Stop(void){
 //    SetSpeed(RIGHT, FORWARD, STOP_SPEED);
 }
 
-
-
-// function to set up Timer 3 for Output Compare 1 and 4
-void InitTimer3(void){
-    T3CONbits.ON = 0;               // disable timer
-    T3CONbits.TCS = 0;              // select internal PBCLK source
-    T3CONbits.TCKPS = 0b010;        // select 1:4 prescale
-    TMR3 = 0;                       // clear timer 3 register
-    PR3 = PWM_PERIOD;               // set period register
-    T3CONbits.ON = 1;               // enable timer
-}
-
-// initializes RB7 to output PWM for the left motor
-void InitLeftPWM(void){
-    TRISBbits.TRISB7 = 0;           // set RB7 as left wheel PWM output
-    RPB7R = 0b0101;                 // set RB7 to OC1
-    TRISAbits.TRISA2 = 0;          // set RA2 as left wheel AIN1 
-    TRISAbits.TRISA3 = 0;           // set RA3 as left wheel AIN2
-    
-    OC1CONbits.ON = 0;              // turn off output compare
-    OC1CONbits.SIDL = 0;            // disable idle mode
-   	OC1CONbits.OC32 = 0;            // use 16 bit timer source
-    OC1CONbits.OCTSEL = 1;          // use Timer 3 as clock source
-    OC1CONbits.OCM = 0b110;         // use PWM mode with faults disabled
-    OC1RS = (PWM_PERIOD / 2) -1;    // set OC1RS duty cycle ~50%
-    OC1R = (PWM_PERIOD / 2) -1;     // set OC1R duty cycle ~50%
-    OC1CONbits.ON = 1;              // turn on output compare
-}
-
-// initializes RB6 to output PWM for the right motor
-void InitRightPWM(void){
-    TRISBbits.TRISB6 = 0;           // set RB6 as right wheel PWM output
-    RPB6R = 0b0101;                 // set RB6 to OC1
-    TRISBbits.TRISB10 = 0;          // set RB10 as right wheel BIN1
-    TRISBbits.TRISB11 = 0;            // set RB12 as right wheel BIN2
-	
-    OC4CONbits.ON = 0;              // turn off output compare
-    OC4CONbits.SIDL = 0;            // disable idle mode
-    OC4CONbits.OC32 = 0;            // use 16 bit timer source
-    OC4CONbits.OCTSEL = 1;          // use Timer 3 as clock source
-    OC4CONbits.OCM = 0b110;         // use PWM mode with faults disabled
-    OC4RS = (PWM_PERIOD / 2) - 1;   // set OC1RS duty cycle ~50%
-    OC4R = (PWM_PERIOD / 2) -1;     // set OC1R duty cycle ~50%
-    OC4CONbits.ON = 1;              // turn on output compare
-}
-
-
-
- //function to set up Timer 2 for IC4, IC5
-void InitTimer2(void){
-    T2CONbits.ON = 0;               // disable timer
-    T2CONbits.TCS = 0;              // select internal PBCLK source
-    //T2CONbits.TCKPS = 0b111;        // select 1:256 prescale
-    
-    T2CONbits.TCKPS = 0b010;        // select 1:4 prescale
-    
-    T2CONbits.TGATE = 0;            // Disable timer 5 TGATE
-    TMR2 = 0;                       // clear timer 2 register
-    PR2 = 0xFFFF;                   // set period register to max period
-    IPC2bits.T2IP = 6;              // set interrupt priority to 6
-    IFS0CLR = _IFS0_T2IF_MASK;		// clear any pending interrupt
-    IEC0SET = _IEC0_T2IE_MASK;		// local enable
-    T2CONbits.ON = 1;               // enable timer
-}
-
-// interrupt response routine for Timer 2 overflows
-void __ISR(_TIMER_2_VECTOR, IPL6SOFT) Timer2OverflowISR(void){
-    IFS0CLR = _IFS0_T2IF_MASK;		// clear interrupt
-
-    combTimeL.byBytes.high++;       // increment rollover counter
-    combTimeR.byBytes.high++;       // increment rollover counter
-}
-
-// initializes Input Capture 4 to measure rising edges of left encoder
-void InitInputCapture4(void){
-    uint16_t buffertrash;           // throwaway variable for clearing buffer
-   
-    IC4CONbits.ON = 0;              // turn off IC4
-    ANSELBbits.ANSB15 = 0;          // disable RB15 analog mode
-    TRISBbits.TRISB15 = 1;          // set RB15 as input pin
-    IC4R = 0b0011;                  // map RB15 pin to IC4
-	IC4CONbits.ICTMR = 1;           // make Timer2 the counter source
-	IC4CONbits.C32 = 0;             // set input capture to 16 bit mode
-    IPC4bits.IC4IP = 7;             // set priority to 7
-	IC4CONbits.FEDGE = 1;           // capture rising edge for the first capture
-	IC4CONbits.ICM = 0b011;         // capture every rising edge
-	IC4CONbits.ICI = 00;            // interrupt on every capture event
-	
-    // while IC4 buffer is not empty
-    while (IC4CONbits.ICBNE == 1){  
-        buffertrash = IC4BUF;       // clear the buffer
-    }
-    
-    IFS0CLR = _IFS0_IC4IF_MASK;     // clear interrupt flag
-    IEC0SET = _IEC0_IC4IE_MASK;     // enable interrupts
-    IC4CONbits.ON = 1;              // turn on IC4
-}
-
-// initializes Input Capture 5 to measure rising edges of right encoder
-void InitInputCapture5(void){
-    uint16_t buffertrash;           // throwaway variable for clearing buffer
-   
-    IC5CONbits.ON = 0;              // turn off IC5
-    ANSELBbits.ANSB13 = 0;          // disable RB15 analog mode
-    TRISBbits.TRISB13 = 1;          // set RB13 as input pin
-    IC5R = 0b0011;                  // map RB13 pin to IC5
-	IC5CONbits.ICTMR = 1;           // make Timer2 the counter source
-	IC5CONbits.C32 = 0;             // set input capture to 16 bit mode
-    IPC5bits.IC5IP = 7;             // set priority to 7
-	IC5CONbits.FEDGE = 1;           // capture rising edge for the first capture
-	IC5CONbits.ICM = 0b011;         // capture every rising edge
-	IC5CONbits.ICI = 00;            // interrupt on every capture event
-	
-    // while IC5 buffer is not empty
-    while (IC5CONbits.ICBNE == 1){  
-        buffertrash = IC5BUF;       // clear the buffer
-    }
-    
-    IFS0CLR = _IFS0_IC5IF_MASK;     // clear interrupt flag
-    IEC0SET = _IEC0_IC5IE_MASK;     // enable interrupts
-    IC5CONbits.ON = 1;              // turn on IC5
-}
-
-//DONT TOUCH, IT IS WORKING
-void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL7SOFT) LeftEncoder_ISR(void){
-    static uint32_t rise1 = 0;          // stores first rise time
-    static uint32_t rise2;              // stores second rise time
-    static bool twoedges = false;       // have not had 2 rise times yet
-    
-    combTimeL.byBytes.low = IC4BUF;    // store capture time for first rise
-    
-    // if input capture happens right before timer rollover
-    if ((IFS0bits.T2IF == 1) && (combTimeL.byBytes.low <= 0x8000)){
-        IFS0CLR = _IFS0_T2IF_MASK;  // clear rollover interrupt
-        combTimeL.byBytes.high++;    // increment rollover counter
-    }
-    
-    // if it is the first time detecting a rising edge
-    if (rise1 == 0){   
-        rise1 = combTimeL.asTime;      // set first rise time
-    }
-    // it is not the first time detecting a rising edge
-    else{
-        rise2 = combTimeL.asTime;      // set second rise time
-        // if we are recording our second rising edge detected
-        if (!twoedges){
-            twoedges = true;            // we can now calculate pulse widths
+// sets the left or right motor to a specified speed
+void SetSpeed(uint8_t wheel, uint8_t drive, uint8_t dutycycle){
+    //**************************** Left Wheel Speed **************************//
+    if (wheel == LEFT){
+        if (drive == FORWARD){
+            LATAbits.LATA2 = 1;     // set AIN1 high
+            LATAbits.LATA3 = 0;     // set AIN2 low
+            targetDC_L = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
         }
-        else{
-            period_L = rise2 - rise1;
-            rise1 = rise2;
+        
+        if (drive == BACKWARD){
+            LATAbits.LATA2 = 0;     // set AIN1 low
+            LATAbits.LATA3 = 1;     // set AIN2 high
+            targetDC_L = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
         }
+        
     }
-    
-    IFS0CLR = _IFS0_IC4IF_MASK;         // clear IC4 interrupt
-}
-
-
-void __ISR(_INPUT_CAPTURE_5_VECTOR, IPL7SOFT) RightEncoder_ISR(void){
-    static uint32_t rise1 = 0;          // stores first rise time
-    static uint32_t rise2;              // stores second rise time
-    static bool twoedges = false;       // have not had 2 rise times yet
-    
-    combTimeR.byBytes.low = IC5BUF;    // store capture time for first rise
-    
-    // if input capture happens right before timer rollover
-    if ((IFS0bits.T2IF == 1) && (combTimeR.byBytes.low <= 0x8000)){
-        IFS0CLR = _IFS0_T2IF_MASK;  // clear rollover interrupt
-        combTimeR.byBytes.high++;    // increment rollover counter
-    }
-
-    // if it is the first time detecting a rising edge
-    if (rise1 == 0){   
-        rise1 = combTimeR.asTime;      // set first rise time
-    }
-    // it is not the first time detecting a rising edge
-    else{
-        rise2 = combTimeR.asTime;      // set second rise time
-        // if we are recording our second rising edge detected
-        if (!twoedges){
-            twoedges = true;            // we can now calculate pulse widths
+    //*************************** Right Wheel Speed **************************//
+    if (wheel == RIGHT){
+        if (drive == FORWARD){
+            LATBbits.LATB10 = 1;    // set BIN1 high
+            LATBbits.LATB11 = 0;    // set BIN2 low
+            targetDC_R = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
         }
-        else{
-            period_R = rise2 - rise1;
-            rise1 = rise2;
-        }
+        
+        if (drive == BACKWARD){
+            LATBbits.LATB10 = 0;    // set BIN1 low
+            LATBbits.LATB11 = 1;    // set BIN2 high
+            targetDC_R = ((dutycycle*PWM_PERIOD)/100) - 1;   // set new speed
+        }  
     }
-    
-    IFS0CLR = _IFS0_IC5IF_MASK;         // clear IC5 interrupt
-}
-
-
-
-
-// function to set up Timer 5 for control law
-void InitTimer5(void){
-    T5CONbits.ON = 0;               // disable timer
-    T5CONbits.TCS = 0;              // select internal PBCLK source
-    T5CONbits.TCKPS = 0b111;        // select 1:256 prescale
-    T5CONbits.TGATE = 0;            // Disable timer 5 TGATE
-    TMR5 = 0;                       // clear timer 5 register
-    PR5 = 390;                      // set period register to 5ms (390 ticks))
-    IPC5bits.T5IP = 4;              // set interrupt priority to 6
-    IFS0CLR = _IFS0_T5IF_MASK;		// clear any pending interrupt
-    IEC0SET = _IEC0_T5IE_MASK;		// local enable
-    T5CONbits.ON = 1;               // enable timer
 }
 
 // updates left and right PWM control every 5ms
@@ -622,6 +412,143 @@ void __ISR(_TIMER_5_VECTOR, IPL6SOFT) Timer5ControlLawISR(void){
 
 
 
+// initializes RB7 to output PWM for the left motor
+void InitLeftPWM(void){
+    TRISBbits.TRISB7 = 0;           // set RB7 as left wheel PWM output
+    RPB7R = 0b0101;                 // set RB7 to OC1
+    TRISAbits.TRISA2 = 0;          // set RA2 as left wheel AIN1 
+    TRISAbits.TRISA3 = 0;           // set RA3 as left wheel AIN2
+    
+    OC1CONbits.ON = 0;              // turn off output compare
+    OC1CONbits.SIDL = 0;            // disable idle mode
+   	OC1CONbits.OC32 = 0;            // use 16 bit timer source
+    OC1CONbits.OCTSEL = 1;          // use Timer 3 as clock source
+    OC1CONbits.OCM = 0b110;         // use PWM mode with faults disabled
+    OC1RS = (PWM_PERIOD / 2) -1;    // set OC1RS duty cycle ~50%
+    OC1R = (PWM_PERIOD / 2) -1;     // set OC1R duty cycle ~50%
+    OC1CONbits.ON = 1;              // turn on output compare
+}
+
+// initializes RB6 to output PWM for the right motor
+void InitRightPWM(void){
+    TRISBbits.TRISB6 = 0;           // set RB6 as right wheel PWM output
+    RPB6R = 0b0101;                 // set RB6 to OC1
+    TRISBbits.TRISB10 = 0;          // set RB10 as right wheel BIN1
+    TRISBbits.TRISB11 = 0;            // set RB12 as right wheel BIN2
+	
+    OC4CONbits.ON = 0;              // turn off output compare
+    OC4CONbits.SIDL = 0;            // disable idle mode
+    OC4CONbits.OC32 = 0;            // use 16 bit timer source
+    OC4CONbits.OCTSEL = 1;          // use Timer 3 as clock source
+    OC4CONbits.OCM = 0b110;         // use PWM mode with faults disabled
+    OC4RS = (PWM_PERIOD / 2) - 1;   // set OC1RS duty cycle ~50%
+    OC4R = (PWM_PERIOD / 2) -1;     // set OC1R duty cycle ~50%
+    OC4CONbits.ON = 1;              // turn on output compare
+}
+
+
+ //function to set up Timer 2 for IC4, IC5
+void InitTimer2(void){
+    T2CONbits.ON = 0;               // disable timer
+    T2CONbits.TCS = 0;              // select internal PBCLK source
+    //T2CONbits.TCKPS = 0b111;        // select 1:256 prescale
+    
+    T2CONbits.TCKPS = 0b010;        // select 1:4 prescale
+    
+    T2CONbits.TGATE = 0;            // Disable timer 5 TGATE
+    TMR2 = 0;                       // clear timer 2 register
+    PR2 = 0xFFFF;                   // set period register to max period
+    IPC2bits.T2IP = 6;              // set interrupt priority to 6
+    IFS0CLR = _IFS0_T2IF_MASK;		// clear any pending interrupt
+    IEC0SET = _IEC0_T2IE_MASK;		// local enable
+    T2CONbits.ON = 1;               // enable timer
+}
+
+// interrupt response routine for Timer 2 overflows
+void __ISR(_TIMER_2_VECTOR, IPL6SOFT) Timer2OverflowISR(void){
+    IFS0CLR = _IFS0_T2IF_MASK;		// clear interrupt
+    rolloverL++;
+    rolloverR++;
+    
+    //combTimeL.byBytes.high++;       // increment rollover counter
+    //combTimeR.byBytes.high++;       // increment rollover counter
+}
+
+
+// function to set up Timer 3 for Output Compare 1 and 4
+void InitTimer3(void){
+    T3CONbits.ON = 0;               // disable timer
+    T3CONbits.TCS = 0;              // select internal PBCLK source
+    T3CONbits.TCKPS = 0b010;        // select 1:4 prescale
+    TMR3 = 0;                       // clear timer 3 register
+    PR3 = PWM_PERIOD;               // set period register
+    T3CONbits.ON = 1;               // enable timer
+}
+
+// function to set up Timer 5 for control law
+void InitTimer5(void){
+    T5CONbits.ON = 0;               // disable timer
+    T5CONbits.TCS = 0;              // select internal PBCLK source
+    T5CONbits.TCKPS = 0b111;        // select 1:256 prescale
+    T5CONbits.TGATE = 0;            // Disable timer 5 TGATE
+    TMR5 = 0;                       // clear timer 5 register
+    PR5 = 390;                      // set period register to 5ms (390 ticks))
+    IPC5bits.T5IP = 4;              // set interrupt priority to 6
+    IFS0CLR = _IFS0_T5IF_MASK;		// clear any pending interrupt
+    IEC0SET = _IEC0_T5IE_MASK;		// local enable
+    T5CONbits.ON = 1;               // enable timer
+}
+
+
+// initializes Input Capture 4 to measure rising edges of left encoder
+void InitInputCapture4(void){
+    uint16_t buffertrash;           // throwaway variable for clearing buffer
+   
+    IC4CONbits.ON = 0;              // turn off IC4
+    ANSELBbits.ANSB15 = 0;          // disable RB15 analog mode
+    TRISBbits.TRISB15 = 1;          // set RB15 as input pin
+    IC4R = 0b0011;                  // map RB15 pin to IC4
+	IC4CONbits.ICTMR = 1;           // make Timer2 the counter source
+	IC4CONbits.C32 = 0;             // set input capture to 16 bit mode
+    IPC4bits.IC4IP = 7;             // set priority to 7
+	IC4CONbits.FEDGE = 1;           // capture rising edge for the first capture
+	IC4CONbits.ICM = 0b011;         // capture every rising edge
+	IC4CONbits.ICI = 00;            // interrupt on every capture event
+	
+    // while IC4 buffer is not empty
+    while (IC4CONbits.ICBNE == 1){  
+        buffertrash = IC4BUF;       // clear the buffer
+    }
+    
+    IFS0CLR = _IFS0_IC4IF_MASK;     // clear interrupt flag
+    IEC0SET = _IEC0_IC4IE_MASK;     // enable interrupts
+    IC4CONbits.ON = 1;              // turn on IC4
+}
+
+// initializes Input Capture 5 to measure rising edges of right encoder
+void InitInputCapture5(void){
+    uint16_t buffertrash;           // throwaway variable for clearing buffer
+   
+    IC5CONbits.ON = 0;              // turn off IC5
+    ANSELBbits.ANSB13 = 0;          // disable RB15 analog mode
+    TRISBbits.TRISB13 = 1;          // set RB13 as input pin
+    IC5R = 0b0011;                  // map RB13 pin to IC5
+	IC5CONbits.ICTMR = 1;           // make Timer2 the counter source
+	IC5CONbits.C32 = 0;             // set input capture to 16 bit mode
+    IPC5bits.IC5IP = 7;             // set priority to 7
+	IC5CONbits.FEDGE = 1;           // capture rising edge for the first capture
+	IC5CONbits.ICM = 0b011;         // capture every rising edge
+	IC5CONbits.ICI = 00;            // interrupt on every capture event
+	
+    // while IC5 buffer is not empty
+    while (IC5CONbits.ICBNE == 1){  
+        buffertrash = IC5BUF;       // clear the buffer
+    }
+    
+    IFS0CLR = _IFS0_IC5IF_MASK;     // clear interrupt flag
+    IEC0SET = _IEC0_IC5IE_MASK;     // enable interrupts
+    IC5CONbits.ON = 1;              // turn on IC5
+}
 
 /* Init Functions */
 // SPI1 (Locomotion): MOSI (RB5), CLK-IN (RB14)
@@ -656,6 +583,99 @@ static void InitSPI(){
   SPI1CONbits.ON = 1;             // Turn on SPI1
 }
 
+/*
+void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL7SOFT) LeftEncoder_ISR(void){
+    static uint16_t capTime;
+    static uint16_t currTime;
+    static uint16_t lastTime;
+    // initialize current time and event to post
+    ES_Event_t ThisEvent;
+    
+    // read time captured from buffer
+    capTime = (uint16_t)IC4BUF;
+    currTime = capTime - lastTime;
+    // clear interrupt flag
+    IFS0CLR = _IFS0_IC4IF_MASK;
+    
+    // If T2IF is pending and captured time is after rollover
+    if (IFS0bits.T4IF && capTime < 0x8000){
+        // increment rollover counter
+        combTimeL.byBytes.high++;
+        // clear rollover interrupt flag
+        IFS0CLR = _IFS0_T4IF_MASK;
+    }
+    
+//    // factor in rollover -> high byte
+//    combTimeL.byBytes.high = rollover;
+//    combTimeL.byBytes.low = currTime;
+//    // update last time
+//    lastTime = capTime;
+//    // clear rollover count
+//    rollover = 0;
+    
+    return;
+}
+*/
+
+void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL7SOFT) LeftEncoder_ISR(void){
+    // initialize current time and event to post
+    ES_Event_t ThisEvent;
+    
+    // read time captured from buffer
+    capTimeL = (uint16_t)IC4BUF;
+    currTimeL = capTimeL - lastTimeL;
+    // clear interrupt flag
+    IFS0CLR = _IFS0_IC4IF_MASK;
+    
+    // If T2IF is pending and captured time is after rollover
+    if (IFS0bits.T2IF && capTimeL < 0x8000){
+        // increment rollover counter
+        ++rolloverL;
+        ++rolloverR;
+        // clear rollover interrupt flag
+        IFS0CLR = _IFS0_T2IF_MASK;
+    }
+    
+    // factor in rollover -> high byte
+    combTimeL.byBytes.high = rolloverL;
+    combTimeL.byBytes.low = currTimeL;
+    // update last time
+    lastTimeL = capTimeL;
+    // clear rollover count
+    rolloverL = 0;
+    
+    return;
+}
+
+void __ISR(_INPUT_CAPTURE_5_VECTOR, IPL7SOFT) RightEncoder_ISR(void){
+    // initialize current time and event to post
+    ES_Event_t ThisEvent;
+    
+    // read time captured from buffer
+    capTimeR = (uint16_t)IC5BUF;
+    currTimeR = capTimeR - lastTimeR;
+    // clear interrupt flag
+    IFS0CLR = _IFS0_IC5IF_MASK;
+    
+    // If T2IF is pending and captured time is after rollover
+    if (IFS0bits.T2IF && capTimeR < 0x8000){
+        // increment rollover counter
+        ++rolloverL;
+        ++rolloverR;
+        // clear rollover interrupt flag
+        IFS0CLR = _IFS0_T2IF_MASK;
+    }
+    
+    // factor in rollover -> high byte
+    combTimeR.byBytes.high = rolloverR;
+    combTimeR.byBytes.low = currTimeR;
+    // update last time
+    lastTimeR = capTimeR;
+    // clear rollover count
+    rolloverR = 0;
+    
+    return;
+}
 
 // SPI Receipt ISR
 void __ISR(_SPI_1_VECTOR, IPL6SOFT) _SPI1ISR(){

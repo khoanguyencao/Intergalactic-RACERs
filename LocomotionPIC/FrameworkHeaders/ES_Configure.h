@@ -265,7 +265,8 @@ typedef enum
   ES_TURNRIGHT,
   ES_STOP,
   ES_FOLLOWCIRCLE,
-  ES_RECEIVE
+  ES_RECEIVE,
+          ES_PRINT
           
 }ES_EventType_t;
 
