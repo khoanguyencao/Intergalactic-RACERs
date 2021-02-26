@@ -27,13 +27,15 @@
 #define RIGHT 1
 #define FORWARD 2
 #define BACKWARD 3
-#define FWD_SPEED 50// speed for going straight forward(in duty cycles)
+
+#define FWD_SPEED 70// speed for going straight forward(in duty cycles)
 #define BKWD_SPEED 50// speed for going straight backward
 #define TURN_SPEED_1 50// speed for turning the racer on one wheel 
-#define TURN_SPEED_2 96// speed for turning racer on other wheel 
+#define TURN_SPEED_2 50// speed for turning racer on other wheel 
 #define CIRC_L_SPEED 82// speed for left wheel when following the path
 #define CIRC_R_SPEED 96// speed for right wheel when following the path
 #define STOP_SPEED 5// speed for stopping the racer
+
 #define PWM_PERIOD 1355 // from 1/time constant
 #define ENCODER_TO_RPM 333333.33*0.8750  // converts encoder period to RPM
 #define DC_TO_RPM 0.7
@@ -201,44 +203,55 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
             puts("Locomotion Service:");
             printf("\rES_INIT received in Service %d\r\n", MyPriority);
             // go to running state
-            CurrentState = Running;
+            CurrentState = Waiting;
         }
+        
     }
     break;
 
-    case Running:       
+    case Waiting:       
     {
-      if (ThisEvent.EventType == ES_PRINT)
+      if ((ThisEvent.EventType == ES_RECEIVE) && (ThisEvent.EventParam == 20))
       {
-          printf("RPM %f\r\n", RPM_L);
-          printf("target  %f\r\n", targetRPM_L);
+        ES_Timer_InitTimer(OUR_TIMER, 4000);
+        ES_Timer_StartTimer(OUR_TIMER);
+        
+        ES_Timer_InitTimer(STOP_TIMER, 9000);
+        ES_Timer_StartTimer(STOP_TIMER);
+        DriveForward();
+        CurrentState = DrivingForward;
       }
-      if (ThisEvent.EventType == ES_GOFORWARD)
+
+    }
+    break;
+    
+    case DrivingForward:       
+    {
+      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == OUR_TIMER))
       {
-          DriveForward();
+        ES_Timer_InitTimer(OUR_TIMER, 1000);
+        ES_Timer_StartTimer(OUR_TIMER);
+        TurnLeft();
+        CurrentState = Turning;
       }
-      if (ThisEvent.EventType == ES_GOBACKWARD)
-      {
-          DriveBackward();
-      }
-      if (ThisEvent.EventType == ES_TURNLEFT)
-      {
-          TurnLeft();
-      }
-      if (ThisEvent.EventType == ES_TURNRIGHT)
-      {
-          TurnRight();
-      }
-      if (ThisEvent.EventType == ES_STOP)
+      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == STOP_TIMER))
       {
           Stop();
       }
-      if (ThisEvent.EventType == ES_FOLLOWCIRCLE)
+    }
+    break;
+    
+    case Turning:       
+    {
+      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == OUR_TIMER))
       {
-          FollowCircle();
+        DriveForward();
+        CurrentState = DrivingForward;
       }
     }
     break;
+    
+    
     
     default:
     {}
@@ -292,14 +305,14 @@ void FollowCircle(void){
 
 // robot turns left
 void TurnLeft(void){    
-    SetSpeed(LEFT, FORWARD, TURN_SPEED_1);
+    SetSpeed(LEFT, BACKWARD, TURN_SPEED_1);
     SetSpeed(RIGHT, FORWARD, TURN_SPEED_2);
 }
 
 // robot turns right
 void TurnRight(void){
     SetSpeed(LEFT, FORWARD, TURN_SPEED_2);
-    SetSpeed(RIGHT, FORWARD, TURN_SPEED_1);
+    SetSpeed(RIGHT, BACKWARD, TURN_SPEED_1);
 }
 
 // robot drives forward
