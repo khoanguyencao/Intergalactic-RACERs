@@ -10,9 +10,9 @@ CND_CONF=FrameworkWith_u8g2
 CND_DISTDIR=dist
 TMPDIR=build/${CND_CONF}/${IMAGE_TYPE}/tmp-packaging
 TMPDIRNAME=tmp-packaging
-OUTPUT_PATH=dist/${CND_CONF}/${IMAGE_TYPE}/Locomotion.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
-OUTPUT_BASENAME=Locomotion.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
-PACKAGE_TOP_DIR=locomotion/
+OUTPUT_PATH=dist/${CND_CONF}/${IMAGE_TYPE}/LocomotionPIC.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
+OUTPUT_BASENAME=LocomotionPIC.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
+PACKAGE_TOP_DIR=locomotionpic/
 
 # Functions
 function checkReturnCode
@@ -57,15 +57,15 @@ mkdir -p ${TMPDIR}
 
 # Copy files and create directories and links
 cd "${TOP}"
-makeDirectory ${TMPDIR}/locomotion/bin
+makeDirectory ${TMPDIR}/locomotionpic/bin
 copyFileToTmpDir "${OUTPUT_PATH}" "${TMPDIR}/${PACKAGE_TOP_DIR}bin/${OUTPUT_BASENAME}" 0755
 
 
 # Generate tar file
 cd "${TOP}"
-rm -f ${CND_DISTDIR}/${CND_CONF}/package/locomotion.tar
+rm -f ${CND_DISTDIR}/${CND_CONF}/package/locomotionpic.tar
 cd ${TMPDIR}
-tar -vcf ../../../../${CND_DISTDIR}/${CND_CONF}/package/locomotion.tar *
+tar -vcf ../../../../${CND_DISTDIR}/${CND_CONF}/package/locomotionpic.tar *
 checkReturnCode
 
 # Cleanup

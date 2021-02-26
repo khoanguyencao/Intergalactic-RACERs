@@ -117,8 +117,8 @@ bool InitLocomotion(uint8_t Priority){
     InitLeftPWM();    // initialize OC1 for left wheel PWM
     InitRightPWM();   // initialize OC4 for right wheel PWM
     
-    //InitInputCapture4();
-    //InitInputCapture5();
+    InitInputCapture4();
+    InitInputCapture5();
 
     InitSPI();        // initialize SPI system
     
@@ -231,16 +231,16 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
 /*--------------------------- Private Functions ---------------------------*/
 // robot drives in a circle of radius 1m
 void FollowCircle(void){
-  LATAbits.LATA2 = 1;     // set AIN1 high
-  LATAbits.LATA3 = 0;     // set AIN2 low
-  OC1RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-
-  LATBbits.LATB10 = 1;    // set BIN1 high
-  LATBbits.LATB11 = 0;    // set BIN2 low
-  OC4RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
+//  LATAbits.LATA2 = 1;     // set AIN1 high
+//  LATAbits.LATA3 = 0;     // set AIN2 low
+//  OC1RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
+//
+//  LATBbits.LATB10 = 1;    // set BIN1 high
+//  LATBbits.LATB11 = 0;    // set BIN2 low
+//  OC4RS = ((CIRC_L_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
     
-//    SetSpeed(LEFT, FORWARD, CIRC_L_SPEED);
-//    SetSpeed(RIGHT, FORWARD, CIRC_R_SPEED);
+    SetSpeed(LEFT, FORWARD, CIRC_L_SPEED);
+    SetSpeed(RIGHT, FORWARD, CIRC_R_SPEED);
 }
 
 // robot turns left
@@ -273,15 +273,16 @@ void TurnRight(void){
 
 // robot drives forward
 void DriveForward(void){
-  LATAbits.LATA2 = 1;     // set AIN1 high
-  LATAbits.LATA3 = 0;     // set AIN2 low
-  OC1RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-
-  LATBbits.LATB10 = 1;    // set BIN1 high
-  LATBbits.LATB11 = 0;    // set BIN2 low
-  OC4RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
-//    SetSpeed(LEFT, FORWARD, FWD_SPEED);
-//    SetSpeed(RIGHT, FORWARD, FWD_SPEED);
+//  LATAbits.LATA2 = 1;     // set AIN1 high
+//  LATAbits.LATA3 = 0;     // set AIN2 low
+//  OC1RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
+//
+//  LATBbits.LATB10 = 1;    // set BIN1 high
+//  LATBbits.LATB11 = 0;    // set BIN2 low
+//  OC4RS = ((FWD_SPEED*PWM_PERIOD)/100) - 1;   // set new speed
+    
+    SetSpeed(LEFT, FORWARD, FWD_SPEED);
+    SetSpeed(RIGHT, FORWARD, FWD_SPEED);
 }
 
 // robot drives backwards
@@ -354,15 +355,15 @@ void __ISR(_TIMER_5_VECTOR, IPL6SOFT) Timer5ControlLawISR(void){
     
     IFS0CLR = _IFS0_T5IF_MASK;      // clear interrupt
     
+    // cast IC time from encoder to float for calculations
+    period_L = (float)combTimeL.asTime;
+    period_R = (float)combTimeR.asTime;   
+    
     // don't run control law until we have a valid period
     if ((period_L == 0) || (period_R == 0)){
         return;
     }
-    
-    // cast IC time from encoder to float for calculations
-    period_L = (float)combTimeL.asTime;
-    period_R = (float)combTimeR.asTime;
-    
+        
     // Left Wheel Control
     targetRPM_L = (targetDC_L * DC_TO_RPM);     // calculate target RPM
     RPM_L = (float)(ENCODER_TO_RPM / period_L); // calculate actual RPM
@@ -406,7 +407,6 @@ void __ISR(_TIMER_5_VECTOR, IPL6SOFT) Timer5ControlLawISR(void){
 
 
 
-// *********you can use these in the big InitLocomotion() function)**********
 // initializes RB7 to output PWM for the left motor
 void InitLeftPWM(void){
     TRISBbits.TRISB7 = 0;           // set RB7 as left wheel PWM output
@@ -429,7 +429,7 @@ void InitRightPWM(void){
     TRISBbits.TRISB6 = 0;           // set RB6 as right wheel PWM output
     RPB6R = 0b0101;                 // set RB6 to OC1
     TRISBbits.TRISB10 = 0;          // set RB10 as right wheel BIN1
-    TRISBbits.TRISB12 = 0;            // set RB12 as right wheel BIN2
+    TRISBbits.TRISB11 = 0;            // set RB12 as right wheel BIN2
 	
     OC4CONbits.ON = 0;              // turn off output compare
     OC4CONbits.SIDL = 0;            // disable idle mode
@@ -683,6 +683,6 @@ void __ISR(_SPI_1_VECTOR, IPL6SOFT) _SPI1ISR(){
       ES_Event_t ReceiveEvent;
       ReceiveEvent.EventType = ES_RECEIVE;
       ReceiveEvent.EventParam = bufRead;
-      PostSPIFollower(ReceiveEvent);
+      PostLocomotion(ReceiveEvent);
     }
 }
