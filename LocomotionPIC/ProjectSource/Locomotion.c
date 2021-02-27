@@ -30,8 +30,8 @@
 
 #define FWD_SPEED 70// speed for going straight forward(in duty cycles)
 #define BKWD_SPEED 50// speed for going straight backward
-#define TURN_SPEED_1 50// speed for turning the racer on one wheel 
-#define TURN_SPEED_2 50// speed for turning racer on other wheel 
+#define TURN_SPEED_1 70// speed for turning the racer on one wheel 
+#define TURN_SPEED_2 70// speed for turning racer on other wheel 
 #define CIRC_L_SPEED 82// speed for left wheel when following the path
 #define CIRC_R_SPEED 96// speed for right wheel when following the path
 #define STOP_SPEED 5// speed for stopping the racer
@@ -216,7 +216,7 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
         ES_Timer_InitTimer(OUR_TIMER, 4000);
         ES_Timer_StartTimer(OUR_TIMER);
         
-        ES_Timer_InitTimer(STOP_TIMER, 9000);
+        ES_Timer_InitTimer(STOP_TIMER, 10000);
         ES_Timer_StartTimer(STOP_TIMER);
         DriveForward();
         CurrentState = DrivingForward;
@@ -229,7 +229,7 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
     {
       if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == OUR_TIMER))
       {
-        ES_Timer_InitTimer(OUR_TIMER, 1000);
+        ES_Timer_InitTimer(OUR_TIMER, 1500);
         ES_Timer_StartTimer(OUR_TIMER);
         TurnLeft();
         CurrentState = Turning;
@@ -237,6 +237,7 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
       if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == STOP_TIMER))
       {
           Stop();
+          CurrentState = Waiting;
       }
     }
     break;

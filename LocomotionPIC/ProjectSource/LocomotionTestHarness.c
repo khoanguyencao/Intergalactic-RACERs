@@ -155,6 +155,12 @@ ES_Event_t RunLocomotionTestHarness(ES_Event_t ThisEvent)
           ThisEvent.EventType = ES_PRINT;
           PostLocomotion(ThisEvent);
       }
+        if ('r' == ThisEvent.EventParam)
+      {
+          ThisEvent.EventType = ES_RECEIVE;
+          ThisEvent.EventParam = 20;
+          PostLocomotion(ThisEvent);
+      }
         // drive straight
       if ('w' == ThisEvent.EventParam)
       {
