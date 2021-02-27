@@ -216,7 +216,7 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
         ES_Timer_InitTimer(OUR_TIMER, 4000);
         ES_Timer_StartTimer(OUR_TIMER);
         
-        ES_Timer_InitTimer(STOP_TIMER, 10000);
+        ES_Timer_InitTimer(STOP_TIMER, 9800);
         ES_Timer_StartTimer(STOP_TIMER);
         DriveForward();
         CurrentState = DrivingForward;
@@ -229,7 +229,7 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
     {
       if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == OUR_TIMER))
       {
-        ES_Timer_InitTimer(OUR_TIMER, 1500);
+        ES_Timer_InitTimer(OUR_TIMER, 1800);
         ES_Timer_StartTimer(OUR_TIMER);
         TurnLeft();
         CurrentState = Turning;
