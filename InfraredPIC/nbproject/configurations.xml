@@ -40,6 +40,7 @@
       <itemPath>ProjectHeaders/dbprintf.h</itemPath>
       <itemPath>ProjectHeaders/IR.h</itemPath>
       <itemPath>ProjectHeaders/IRTestHarness.h</itemPath>
+      <itemPath>ProjectHeaders/Queue.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -55,6 +56,7 @@
       <itemPath>u8g2/u8g2_TestHarness_main.c</itemPath>
       <itemPath>ProjectSource/IR.c</itemPath>
       <itemPath>ProjectSource/IRTestHarness.c</itemPath>
+      <itemPath>ProjectSource/Queue.c</itemPath>
     </logicalFolder>
     <logicalFolder name="f3" displayName="u8g2Headers" projectFiles="true">
       <itemPath>u8g2Headers/common.h</itemPath>
@@ -129,7 +131,7 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>snap</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>2.41</languageToolchainVersion>
+        <languageToolchainVersion>2.50</languageToolchainVersion>
         <platform>4</platform>
       </toolsSet>
       <packs>
@@ -632,7 +634,7 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>snap</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>2.41</languageToolchainVersion>
+        <languageToolchainVersion>2.50</languageToolchainVersion>
         <platform>4</platform>
       </toolsSet>
       <packs>

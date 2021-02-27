@@ -24,7 +24,7 @@ CLEAN_SUBPROJECTS=${CLEAN_SUBPROJECTS_${SUBPROJECTS}}
 
 
 # Project Name
-PROJECTNAME=pic3_ir
+PROJECTNAME=InfraredPIC
 
 # Active Configuration
 DEFAULTCONF=FrameworkWith_u8g2
