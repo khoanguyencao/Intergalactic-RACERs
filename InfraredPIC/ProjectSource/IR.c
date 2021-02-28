@@ -39,6 +39,8 @@
 #include "EventCheckers.h"
 #include "ES_Port.h"
 
+#include "Queue.h"      // required for SPI functionality - kcao
+
 
 /*----------------------------- Module Defines ----------------------------*/
 //#define PERIOD1 1500  //assume we are robot A Team A
@@ -47,10 +49,6 @@
 // #define PERIOD1 2500
 // #define PERIOD2 5500
 #define TOLERENCE 5
-
-//#define TEST_DETECT
-//#define TEST_BLINK
-
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -63,6 +61,19 @@ void _initIC_FrontRight();
 void _initIC_Rear();
 void _initTimer3();
 void _initTimer2();
+static void InitSPI();
+static void SendLeader(uint8_t message);
+static void RobotState(uint16_t message);
+// Wrappers
+static void StartTransmitFront(uint16_t period);
+static void StartTransmitRear(uint16_t period);
+static void StopTransmitFront();
+static void StopTransmitRear();
+static void StartReceiveFront();
+static void StartReceiveRear());
+static void StopReceiveFront();
+static void StopReceiveRear();
+
 
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
@@ -75,11 +86,34 @@ static uint16_t PERIOD1 = 1500;
 static uint16_t PERIOD2 = 3500;
 static uint8_t leftdetected = 0;
 static volatile uint8_t rightdetected = 0;
+
 static volatile Timer myTimer2;
 static volatile Timer myTimer3;
-static volatile uint8_t TxNum;    
+static volatile uint8_t TxNum;  
+static volatile uint8_t lastTxNum = 0;
 static volatile uint8_t edgeNum = 0;
-    
+
+static uint8_t firstRiseFrontLeft = 0;
+static uint32_t periodFrontLeft = 0;
+static uint32_t lastRiseFrontLeft = 0;
+static volatile uint8_t lastleftdetect = 0;
+
+static volatile uint8_t firstRiseFrontRight = 0;
+static volatile uint32_t periodFrontRight = 0;
+static volatile uint32_t lastRiseFrontRight = 0;
+static volatile uint8_t lastrightdetect = 0;
+
+static volatile uint8_t firstFallRear = 0;
+static volatile uint32_t periodRear = 0;
+static volatile uint32_t lastFallRear = 0;
+static volatile uint8_t referenceTxNum = 99;
+static volatile uint8_t currentTxNum = 0;
+
+static bool isBlueTeam;
+static bool isRobotA;
+static bool isRobotB;
+static bool isRobotC;
+
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -168,20 +202,9 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
     {
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
-        /* Responds to ES_ROBOT_TYPE from reading the SPI */
-        // TODO
-
         /* Initialize Timer 2 and 3 */
         _initTimer2();
         _initTimer3();
-        
-//        #ifdef TEST_DETECT
-//            _initIC_FrontRight();
-//        #endif
-//        
-//        #ifdef TEST_BLINK
-//            _initIC_Rear();
-//        #endif
 
         /* Clear Timers */
         myTimer2.RealTime.rolloverCount = 0;
@@ -191,77 +214,207 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
         myTimer3.RealTime.buffRead = 0;
         myTimer3.realTime = 0;
 
-        // Assume Robot A  TODO
-        CurrentState = Running;
+        InitSPI();
+        CurrentState = InitPState2;
       }
     }
     break;
 
-    case Running:       
+    case InitPState2:        
     {
-      if (ThisEvent.EventType == ES_FREQ1)
+      if (ThisEvent.EventType == ES_RECEIVE)    
       {
-          PERIOD1 = 1500;
-          Init_RearPWM(1500);   // start emitting frequency 1
-          _initIC_FrontRight();
-//          _stopIC_Rear();
-//          _startIC_Front(PERIOD1);
-
-      }
-      if (ThisEvent.EventType == ES_FREQ2)
-      {
-          PERIOD2 = 3500;
-          Init_RearPWM(3500);
-          _initIC_FrontRight();
-//          _stopIC_Rear();
-//          _startIC_Front(PERIOD2);
-
-      }
-      if (ThisEvent.EventType == ES_FREQ3)
-      {
-          PERIOD1 = 2500;
-          Init_RearPWM(2500);
-          _initIC_FrontRight();
-//          _stopIC_Rear();
-//          _startIC_Front(PERIOD1);
-      }
-      if (ThisEvent.EventType == ES_FREQ4)
-      {
-          PERIOD2 = 5500;
-          Init_RearPWM(5500);
-          _initIC_FrontRight();
-//          _stopIC_Rear();
-//          _startIC_Front(PERIOD2);
-      }
-      if (ThisEvent.EventType == ES_BLINK)
-      {
-          TxNum = ThisEvent.EventParam;    
-          Init_FrontPWM(PERIOD1);
-          _initIC_Rear();
-//          _stopIC_Front();
-//          _startIC_Rear(PERIOD1);
-      }
-      if (ThisEvent.EventType == ES_RX_BATON)
-      {
-          printf("Num of Transfer: %u\n ",TxNum);
-      }
-      if (ThisEvent.EventType == ES_LEFTDETECT)
-      {
-          printf("Left detected f %u\n ",ThisEvent.EventParam);
-      }
-      if (ThisEvent.EventType == ES_RIGHTDETECT)
-      {
-          printf("Right detected f %u\n ",ThisEvent.EventParam);
+        // Further init based on leader SPI 
+        RobotState(ThisEvent.EventParam); 
+        if (robotA){
+          StartReceiveFront();
+          CurrentState = FollowingPath;
+        } else {
+          StartTransmitRear(PERIOD1);
+          CurrentState = Waiting2RxBaton;
+        }
       }
     }
     break;
 
-    // TODO repeat state pattern as required for other states
+    case Waiting2RxBaton:        
+    {
+      switch (ThisEvent.EventType)
+        {  
+          case ES_RX_BATON:
+          {
+            StartTransmitRear(PERIOD2);
+            StopReceiveRear();
+            SendLeader(100);
+            ES_Timer_InitTimer(0, 500);
+            CurrentState = Leaving;
+          }
+          break;
+
+          case ES_RECEIVE:
+          {
+            if (ThisEvent.EventParam == 66)
+            {
+              CurrentState = Termination;
+            }
+          }
+          break;
+
+          default:
+          {}
+          break;
+        }
+    }
+    break;
+
+    case Leaving:        
+    {
+      switch (ThisEvent.EventType)
+        {  
+          case ES_TIMEOUT:
+          {
+            StopTransmitRear();
+            StartReceiveFront();
+            CurrentState = FollowingPath;
+          }
+          break;
+
+          case ES_RECEIVE:
+          {
+            if (ThisEvent.EventParam == 66)
+            {
+              CurrentState = Termination;
+            }
+          }
+          break;
+
+          default:
+          {}
+          break;
+        }
+    }
+    break;
+
+    case FollowingPath:        
+    {
+      switch (ThisEvent.EventType)
+        {  
+          case ES_BOTH_DETECT:
+          {
+            SendLeader(150);
+            CurrentState = Aligning;
+          }
+          break;
+
+          case ES_RECEIVE:
+          {
+            if (ThisEvent.EventParam == 66)
+            {
+              CurrentState = Termination;
+            }
+          }
+          break;
+
+          default:
+          {}
+          break;
+        }
+    }
+    break;
+
+    case Aligning:        
+    {
+      switch (ThisEvent.EventType)
+        {  
+          case ES_RECEIVE:
+          {
+            // ES_TX_BATON
+            if (ThisEvent.EventParam == 12)
+            {
+              StopReceiveFront();
+              StartTransmitFront(PERIOD1);
+              CurrentState = SendingLaps;
+            }
+            // ES_TERMINATE
+            if (ThisEvent.EventParam == 66)
+            {
+              CurrentState = Termination;
+            }
+          }
+          break;
+
+          case ES_BOTH_DETECT:
+          {
+            SendLeader(150);
+          }
+          break;
+
+          case ES_LEFTDETECT:
+          {
+            SendLeader(125);
+          }
+          break;
+
+          case ES_RIGHTDETECT:
+          {
+            SendLeader(225);
+          }
+          break;
+
+          case ES_NO_DETECT:
+          {
+            SendLeader(250);
+          }
+          break;
+
+          default:
+          {}
+          break;
+        }
+    }
+    break;
+
+    case SendingLaps:        
+    {
+      switch (ThisEvent.EventType)
+        {  
+          case ES_FREQ_CHANGE:
+          {
+            StopReceiveFront();
+            StopTransmitFront();
+            StartTransmitRear(PERIOD1);
+            PostLeader(175);
+            CurrentState = Waiting2RxBaton;
+          }
+          break;
+
+          case ES_RECEIVE:
+          {
+            if (ThisEvent.EventParam == 66)
+            {
+              CurrentState = Termination;
+            }
+          }
+          break;
+
+          default:
+          {}
+          break;
+        }
+    }
+    break;
+
+    case Termination:
+    {
+      // Termination - no events 
+    }
+    break;
+
     default:
     {}
     break;
 
-    }                                  // end switch on Current State
+    }                                  
   return ReturnEvent;
 }
 
@@ -371,8 +524,8 @@ void _initIC_Rear(void){
     IC4CONbits.ICTMR = 1;
     /* Set to 16-bit mode*/
     IC4CONbits.C32 = 0;
-    /* Configure IC4 to Simple Capture Event mode, every rising edge */
-    IC1CONbits.ICM = 0b011;
+    /* Configure IC4 to Simple Capture Event mode, every falling edge */
+    IC4CONbits.ICM = 0b010;
     /* Enable local IC4 interrupts */
     IEC0SET = _IEC0_IC4IE_MASK;
     /* Configure to interrupt on every capture event */
@@ -386,6 +539,14 @@ void _initIC_Rear(void){
         /* Set local variable to read input capture buffer IC4BUF */
         trashReading = IC4BUF;
     }
+    
+    /* Reset variable values within ISR: */
+    firstFallRear = 0;
+    periodRear = 0;
+    lastFallRear = 0;
+    referenceTxNum = 99;
+    currentTxNum = 0;
+    lastTxNum = 0;
     
     /* Turn on input capture */
     IC4CONbits.ON = 1;
@@ -424,6 +585,12 @@ void _initIC_FrontRight(){
         trashReading = IC1BUF;
     }
     
+    /* Update ISR val */
+    firstRiseFrontRight = 0;
+    periodFrontRight = 0;
+    lastRiseFrontRight = 0;
+    lastrightdetect = 0;
+    
     /* Turn on input capture */
     IC1CONbits.ON = 1;
 }
@@ -445,7 +612,7 @@ void _initIC_FrontLeft(){
     /* Set to 16-bit mode*/
     IC2CONbits.C32 = 0;
     /* Configure IC2 to Simple Capture Event mode, every rising edge */
-    IC1CONbits.ICM = 0b011;
+    IC2CONbits.ICM = 0b011;
     /* Enable local IC2 interrupts */
     IEC0SET = _IEC0_IC2IE_MASK;
     /* Configure to interrupt on every capture event */
@@ -455,13 +622,19 @@ void _initIC_FrontLeft(){
     IPC2bits.IC2IS = 0;
     
     /* While buffer is not empty*/
-    if (IC1CONbits.ICBNE == 1){
+    if (IC2CONbits.ICBNE == 1){
         /* Set local variable to read input capture buffer IC1BUF */
-        trashReading = IC1BUF;
+        trashReading = IC2BUF;
     }
     
+    /* Clear ISR values */
+    firstRiseFrontLeft = 0;
+    periodFrontLeft = 0;
+    lastRiseFrontLeft = 0;
+    lastleftdetect = 0;
+    
     /* Turn on input capture */
-    IC1CONbits.ON = 1;
+    IC2CONbits.ON = 1;
 }
 
 
@@ -470,42 +643,55 @@ void _initIC_FrontLeft(){
 void __ISR(_INPUT_CAPTURE_4_VECTOR,IPL7SOFT)_ICRearISR(void){
 
     static volatile ES_Event_t ThisEvent;
-    static volatile uint8_t firstRiseRear = 0;
-    static volatile uint32_t periodRear = 0;
-    static volatile uint32_t lastRiseRear = 0;
-    static volatile uint8_t referenceTxNum = 99;
-    static volatile uint8_t currentTxNum = 0;
-
-  myTimer2.RealTime.buffRead = IC4BUF ;   //Read the Variable
-
-  if (firstRiseRear != 0){
-    /* Calculate Period */
-    periodRear = myTimer2.RealTime.buffRead - lastRiseRear;
-    if ((periodRear <= PERIOD1 + TOLERENCE) && (periodRear >= PERIOD1 - TOLERENCE)){
-      /* Count number of transfers */
-       currentTxNum++;
+    myTimer2.RealTime.buffRead = IC4BUF ;   //Read the Variable
+    
+    /* If T2IF (Timer Overflow flag) is pending, and captured time is after rollover */
+    if (IFS0bits.T2IF == 1 ){
+        if ( myTimer2.RealTime.buffRead <= 0x8000 ){
+            /* Clear the Timer2 rollover interrupt */
+            IFS0CLR = _IFS0_T2IF_MASK ;
+            /* Increment rolloverCount */
+            myTimer2.RealTime.rolloverCount ++;
+        }
     }
-    else if ((periodRear >= 5*PERIOD1) && (periodRear <= 7*PERIOD1)){ //one cycle of blinking complete. should be 6*period.
-      currentTxNum++;  //count last rise
-      referenceTxNum = currentTxNum;
-    }
+    
+    if (firstFallRear != 0){
+        
+        /* Calculate Period */
+        periodRear = myTimer2.RealTime.buffRead - lastFallRear;
+        //printf("%u\n", periodRear);
+        if ((periodRear <= (PERIOD1 + 10*TOLERENCE)) && (periodRear >= (PERIOD1 - 10*TOLERENCE))){
+            /* Count number of transfers */
+             currentTxNum++;
+        }
+        else if ((periodRear >= (5*PERIOD1-50*TOLERENCE)) && (periodRear <= (5*PERIOD1 + 50*TOLERENCE))){ //one cycle of blinking complete. should be 6*period.
+            currentTxNum++;  //count last rise
+            referenceTxNum = currentTxNum;
+            //printf("%u\n", currentTxNum);
+        }
 
-    if(currentTxNum == referenceTxNum){  // double checking we read correct # of transfers
-    /* PostEvent ES_RX_BATON with param currentTxNum */
-      ThisEvent.EventType = ES_RX_BATON;
-      ThisEvent.EventParam = currentTxNum;
-      PostIR(ThisEvent);
-      /* Store new transfer number into local variable TxNum */
-      TxNum = currentTxNum; 
-    /* Reset currentTxNum & referenceTxNum */
-      currentTxNum = 0;
-      referenceTxNum = 99;
-    }
-  } 
+        if((currentTxNum == referenceTxNum)){//&& (lastTxNum == 0)&& (referenceTxNum != 99)){  // double checking we read correct # of transfers
+            //printf("%u\n", currentTxNum);
+            
+                /* PostEvent ES_RX_BATON with param currentTxNum */
+                ThisEvent.EventType = ES_RX_BATON;
+                ThisEvent.EventParam = currentTxNum;
+                PostIR(ThisEvent);
+                lastTxNum = 1;
+            
+            /* Store new transfer number into local variable TxNum */
+            TxNum = currentTxNum; 
+            
+            /* Reset currentTxNum & referenceTxNum */
+            currentTxNum = 0;
+            referenceTxNum = 99;
+            
+        }
+    } 
 
   /* Update lastRiseRear */
-  lastRiseRear = myTimer2.RealTime.buffRead;
-  firstRiseRear = 1;
+  lastFallRear = myTimer2.RealTime.buffRead;
+  firstFallRear = 1;
 
   /* Clear the input capture interrupt flag */
   IFS0CLR = _IFS0_IC4IF_MASK;
@@ -513,45 +699,45 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR,IPL7SOFT)_ICRearISR(void){
 
 //Uses IC2, timer2 for navigating and also recognizing when front robot uses freq2
 void __ISR (_INPUT_CAPTURE_2_VECTOR, IPL7SOFT ) IC_Front_Left_ISR ( void ){
+    
+    static ES_Event_t ThisEvent;
 
-  static ES_Event_t ThisEvent;
-  static uint8_t firstRiseFrontLeft = 0;
-  static uint32_t periodFrontLeft = 0;
-  static uint32_t lastRiseFrontLeft = 0;
+    myTimer2.RealTime.buffRead = IC2BUF ;   //Read the Variable
 
-  myTimer2.RealTime.buffRead = IC2BUF ;   //Read the Variable
+    if (firstRiseFrontLeft != 0){
+        /* Calculate Period */
+        periodFrontLeft = myTimer2.RealTime.buffRead - lastRiseFrontLeft;
+        if ((periodFrontLeft <= (PERIOD1 + TOLERENCE)) && (periodFrontLeft >= (PERIOD1 - TOLERENCE))){
+            leftdetected = 1;
+            if (lastleftdetect!= leftdetected){
+                ThisEvent.EventType = ES_LEFTDETECT;
+                ThisEvent.EventParam = leftdetected;
+                PostIR(ThisEvent);
+           }
+        }
+        else if ((periodFrontLeft <= (PERIOD2 + TOLERENCE)) && (periodFrontLeft >= (PERIOD2 - TOLERENCE))){
+            leftdetected = 2;
+            if (lastleftdetect!= leftdetected){
+                ThisEvent.EventType = ES_LEFTDETECT;
+                ThisEvent.EventParam = leftdetected;
+                PostIR(ThisEvent);
+            }
+        }
+    } 
 
-  if (firstRiseFrontLeft != 0){
-    /* Calculate Period */
-    periodFrontLeft = myTimer2.RealTime.buffRead - lastRiseFrontLeft;
-    if ((periodFrontLeft <= PERIOD1 + TOLERENCE) && (periodFrontLeft >= PERIOD1 - TOLERENCE)){
-       leftdetected = 1;
-       ThisEvent.EventType = ES_LEFTDETECT;
-       ThisEvent.EventParam = leftdetected;
-    }
-    else if ((periodFrontLeft <= PERIOD2 + TOLERENCE) && (periodFrontLeft >= PERIOD2 - TOLERENCE)){
-       leftdetected = 2;
-       ThisEvent.EventType = ES_LEFTDETECT;
-       ThisEvent.EventParam = leftdetected;
-    }
-  } 
-
-  /* Update lastRiseFrontLeft */
-  lastRiseFrontLeft = myTimer2.RealTime.buffRead;
-  firstRiseFrontLeft = 1;
-
-  /* Clear the input capture interrupt flag */
-  IFS0CLR = _IFS0_IC2IF_MASK;
+    /* Update lastRiseFrontLeft */
+    lastRiseFrontLeft = myTimer2.RealTime.buffRead;
+    firstRiseFrontLeft = 1;
+    lastleftdetect = leftdetected;
+    
+    /* Clear the input capture interrupt flag */
+    IFS0CLR = _IFS0_IC2IF_MASK;
 }
 
 //Uses IC1, timer2 for navigating and also recognizing when front robot uses freq2
 void __ISR (_INPUT_CAPTURE_1_VECTOR, IPL7SOFT ) IC_Front_Right_ISR ( void ){
 
     static volatile ES_Event_t ThisEvent;
-    static volatile uint8_t firstRiseFrontRight = 0;
-    static volatile uint32_t periodFrontRight = 0;
-    static volatile uint32_t lastRiseFrontRight = 0;
-    static volatile uint8_t lastrightdetect = 0;
 
     myTimer2.RealTime.buffRead = IC1BUF ;   //Read the Variable
 
@@ -581,6 +767,7 @@ void __ISR (_INPUT_CAPTURE_1_VECTOR, IPL7SOFT ) IC_Front_Right_ISR ( void ){
     lastRiseFrontRight = myTimer2.RealTime.buffRead;
     firstRiseFrontRight = 1;
     lastrightdetect = rightdetected;
+    
     /* Clear the input capture interrupt flag */
     IFS0CLR = _IFS0_IC1IF_MASK;
 }
@@ -615,13 +802,13 @@ void __ISR (_INPUT_CAPTURE_1_VECTOR, IPL7SOFT ) IC_Front_Right_ISR ( void ){
 //  }
 //    
 //    else if ((leftdetected == 1) && (rightdetected == 0)){
-//        ThisEvent.EventType = ES_LEFT_DETECT;
+//        ThisEvent.EventType = ES_LEFTDETECT;
 //        leftdetected = 0;
 //        rightdetected = 0;
 //    }
 //    
 //    else if ((leftdetected == 0) && (rightdetected == 1)){
-//        ThisEvent.EventType = ES_RIGHT_DETECT;
+//        ThisEvent.EventType = ES_RIGHTDETECT;
 //        leftdetected = 0;
 //        rightdetected = 0;
 //    }
@@ -644,6 +831,7 @@ void __ISR (_INPUT_CAPTURE_1_VECTOR, IPL7SOFT ) IC_Front_Right_ISR ( void ){
 //}
 //
 
+
 // sets up OC1 to generate PWM using Timer 3, 
 void Init_FrontPWM(uint16_t period){
     IFS0CLR = _IFS0_OC1IF_MASK;  // Clear the OC1 interrupt flag
@@ -660,7 +848,6 @@ void Init_FrontPWM(uint16_t period){
     PR3 = 0xFFFF;            // set period register
     TMR3 = 0;                   // clear timer 3 register
     edgeNum = 0; 
-    //cycleNum = 0;
 //    IFS0CLR = _IFS0_T3IF_MASK;  // Clear the timer3 interrupt 
 //    IEC0CLR = _IEC0_T3IE_MASK;  // Disable Timer 3 interrupts
 //    IEC0SET = _IEC0_T3IE_MASK; 
@@ -718,7 +905,7 @@ void __ISR(_OUTPUT_COMPARE_1_VECTOR, IPL7SOFT) OC1_FrontPWMISR (void){
     }
     /* If done blinking one cycle of transfers, load OC1R with 5 times more */
     else {
-        loadNum += (11*(PERIOD1/2));
+        loadNum += (10*(PERIOD1/2));
         edgeNum = 0; 
     }
 
@@ -727,3 +914,166 @@ void __ISR(_OUTPUT_COMPARE_1_VECTOR, IPL7SOFT) OC1_FrontPWMISR (void){
     IFS0CLR = _IFS0_OC1IF_MASK;  // Clear the OC1 interrupt 
 }
 
+
+/***************************************************************************
+ SPI System
+ ***************************************************************************/
+
+/* Init Functions */
+// SPI (Infrared): MOSI (RB5), MISO (RB8), CLK-IN (RB14), SS1 (RB4)
+static void InitSPI(){
+  ANSELBbits.ANSB14 = 0;          // Disable analog inputs on RB14
+  TRISBbits.TRISB5 = 1;           // MOSI as input
+  TRISBbits.TRISB14 = 1;          // CLK as input
+  TRISBbits.TRISB4 = 1;           // SS1 as input
+  TRISBbits.TRISB8 = 0;           // MISO as output
+  LATBbits.LATB8 = 1;             // Pull MISO as high
+  SDI1R = 0b0001;                 // Set SDI1 to RB5
+  SS1R = 0b0010;                  // Set SS1 to RB4
+  RPB8R = 0b0011;                 // Set RB8 as SDO01
+  IEC1CLR = _IEC1_SPI1RXIE_MASK;  // Local interrupt disable for SPI Rx
+  SPI1CONbits.ON = 0;             // Turn off SPI1
+  IFS1CLR = _IFS1_SPI1RXIF_MASK;  // Clear interrupt flag for SPI Rx
+  IPC7bits.SPI1IP = 7;            // Set SPI interrupt priority to 7
+  uint8_t clearVar = SPI1BUF;     // Clear SPI1BUF
+  SPI1CONbits.ENHBUF = 0;         // Turn off enhanced buffer
+  SPI1STATbits.SPIROV = 0;        // Clear overflow bit
+  SPI1CONbits.MSTEN = 0;          // Slave mode
+  SPI1CONbits.MSSEN = 0;          // Slave select is manual
+  SPI1CONbits.SSEN = 1;           // SS pin used for slave mode 
+  SPI1CONbits.FRMEN = 0;          // Disable framed SPI support
+  SPI1CONbits.CKE = 0;            // 2nd clock edge is active
+  SPI1CONbits.CKP = 1;            // Clock idle is high
+  SPI1CONbits.FRMPOL = 0;         // SS is active low
+  SPI1CONbits.MODE16 = 0;         // 8-bit mode
+  SPI1CONbits.MODE32 = 0;         // 8-bit mode
+  SPI1CONbits.MCLKSEL = 0;        // Use PBCLK
+  SPI1CONbits.SRXISEL = 0b01;     // Interrupts when Rx buffer is not empty
+  IEC1SET = _IEC1_SPI1RXIE_MASK;  // Local interrupt enable for SPI Rx
+  __builtin_enable_interrupts;    // Global interrupt enable 
+  INTCONbits.MVEC = 1;            // Enable multi-vector mode 
+  SPI1CONbits.ON = 1;             // Turn on SPI1
+}
+
+/* Helper Functions */
+static void SendLeader(uint8_t message){
+  enqueue(1, message);
+}
+
+/* Interrupts */
+// SPI Receipt ISR
+void __ISR(_SPI_1_VECTOR, IPL7SOFT) _SPI1ISR(){
+    // Declare static uint8_t var bufRead to store buffer reading
+    static volatile uint8_t bufRead;
+    // Read the byte and then clear the Rx interrupt
+    bufRead = SPI1BUF;
+    IFS1CLR = _IFS1_SPI1RXIF_MASK;
+    if (bufRead != 0){
+      ES_Event_t ReceiveEvent;
+      ReceiveEvent.EventType = ES_RECEIVE;
+      ReceiveEvent.EventParam = bufRead;
+      PostSPIFollower(ReceiveEvent);
+    }
+    // Send the next message in the queue if present 
+    if(!isQueueEmpty(1)){
+      uint8_t message = dequeue(1);
+      SPI1BUF = message;
+    } else {
+      SPI1BUF = 0;                    // Empty byte if no information to send 
+    }
+}
+
+/***************************************************************************
+ Helper Functions
+ ***************************************************************************/
+
+ static void RobotState(uint16_t message){
+  // Update robot and team state
+  if(message == 20){
+    isRobotA = true;
+    isRobotB = false;
+    isRobotC = false;
+    isBlueTeam = false;
+  } else if (message == 30){
+    isRobotA = true;
+    isRobotB = false;
+    isRobotC = false;
+    isBlueTeam = true;
+  } else if (message == 40){
+    isRobotA = false;
+    isRobotB = true;
+    isRobotC = false;
+    isBlueTeam = false;
+  } else if (message == 50){
+    isRobotA = false;
+    isRobotB = true;
+    isRobotC = false;
+    isBlueTeam = true;
+  } else if (message == 60){
+    isRobotA = false;
+    isRobotB = false;
+    isRobotC = true;
+    isBlueTeam = false;
+  } else if (message == 70){
+    isRobotA = false;
+    isRobotB = false;
+    isRobotC = true;
+    isBlueTeam = true;
+  }
+  // Update period 1/period 2 values 
+  if (isBlueTeam){
+    PERIOD1 = 2500;
+    PERIOD2 = 5500;
+  } else {
+    PERIOD1 = 1500;
+    PERIOD2 = 3500;
+  }
+ }
+
+/***************************************************************************
+ Wrapper Functions (for Code Readability)
+ ***************************************************************************/
+
+// Transmit Wrappers
+// Note transmit front is transmit laps
+static void StartTransmitFront(uint16_t period){
+  Init_FrontPWM(period);
+}
+
+static void StartTransmitRear(uint16_t period){
+  Init_RearPWM(period);
+}
+
+static void StopTransmitFront(){
+  IEC0CLR = _IEC0_OC1IE_MASK;
+  OC1CONbits.ON = 0; 
+}
+
+static void StopTransmitRear(){
+  OC2CONbits.ON = 0;
+}
+
+// Receive Wrappers
+static void StartReceiveFront(){
+  _initIC_FrontRight();
+  _initIC_FrontLeft();
+  initPostingTimer();
+}
+
+static void StartReceiveRear(){
+ _initIC_Rear();
+}
+
+static void StopReceiveFront(){
+  IEC0CLR = _IEC0_IC1IE_MASK;
+  IEC0CLR = _IEC0_IC2IE_MASK;
+  IEC0CLR = _IEC0_T4IE_MASK;
+  IC1CONbits.ON = 0;
+  IC2CONbits.ON = 0;
+  T4CONbits.ON = 0;
+}
+
+static void StopReceiveRear(){
+  IEC0CLR = _IEC0_IC4IE_MASK;
+  IC4CONbits.ON = 0;
+}

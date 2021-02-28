@@ -260,8 +260,14 @@ typedef enum
   ES_SHORT_TIMEOUT,         /* signals that a short timer has expired */
   /* User-defined events start here */
   ES_NEW_KEY,               /* signals a new key received from terminal */
-  ES_FREQ1, ES_FREQ2, ES_FREQ3, ES_FREQ4, ES_BLINK, ES_RX_BATON, ES_LEFTDETECT, 
-          ES_RIGHTDETECT
+  ES_RX_BATON,
+  ES_BOTH_DETECT,
+  ES_TX_BATON,
+  ES_LEFTDETECT,
+  ES_RIGHTDETECT,
+  ES_FREQ_CHANGE, 
+  ES_NO_DETECT
+  //ES_FREQ1, ES_FREQ2, ES_FREQ3, ES_FREQ4, ES_BLINK
 }ES_EventType_t;
 
 /****************************************************************************/
@@ -305,7 +311,7 @@ typedef enum
 // Unlike services, any combination of timers may be used and there is no
 // priority in servicing them
 #define TIMER_UNUSED ((pPostFunc)0)
-#define TIMER0_RESP_FUNC TIMER_UNUSED
+#define TIMER0_RESP_FUNC PostIR
 #define TIMER1_RESP_FUNC TIMER_UNUSED
 #define TIMER2_RESP_FUNC TIMER_UNUSED
 #define TIMER3_RESP_FUNC TIMER_UNUSED

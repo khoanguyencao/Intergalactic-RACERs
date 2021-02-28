@@ -23,8 +23,7 @@
 //State Def
 typedef enum
 {
-	InitPState, Running, SendingNumLaps, Off
-    //InitPState, Waiting2InchForward, SendingNumTxs, Waiting2RxBaton, BlinkFreq2, FollowPath, Aligning
+	InitPState, InitPState2, Waiting2RxBaton, Leaving, FollowingPath, Aligning, SendingLaps, Termination
 } IRState_t;
 
 // Type Def:

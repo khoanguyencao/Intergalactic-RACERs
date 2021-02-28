@@ -282,7 +282,6 @@ TemplateState_t QueryGameplayService(void)
  ***************************************************************************/
 
 /* Init Functions */
-
 // Switches: Team (RA2), Robot A (RA3), Robot C (RA4), Robot B (RB4)
 // Hall Effect (RB13)
 static void InitInputs(){
@@ -484,7 +483,7 @@ static void processMessage(uint16_t message){
     ES_Event_t ReceiveBatonEvent;
     ReceiveBatonEvent.EventType = ES_RX_BATON;
     PostGameplayService(ReceiveBatonEvent);
-  } else if ((message == 125) || (message == 150) || (message == 175)){
+  } else if ((message == 125) || (message == 150) || (message == 175) || (message == 225)){
     // Locomotion Events
     SendLocomotion(message);
     printf("Received: %u\n", message);
@@ -521,7 +520,7 @@ void __ISR(_TIMER_1_VECTOR, IPL7SOFT) GameplayTimerISR(){
   }
   // If time over, post a termination event.
   if(GameplayTimerOverflow == 165){
-    __builtin_disable_interrupts();
+    __builtin_disable_interrupts();             // note logic may cause bugs 
     ES_Event_t TerminationEvent;
     TerminationEvent.EventType = ES_TERMINATE;
     TerminationEvent.EventParam = 66;
