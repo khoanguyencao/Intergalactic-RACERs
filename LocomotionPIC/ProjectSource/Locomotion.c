@@ -22,6 +22,7 @@
 #define RPM_SCALE 5208
 #define PI_PERIOD 12500
 #define MAX_RPM 70
+#define INCH_TIME 500
 
 #define LEFT 0
 #define RIGHT 1
@@ -114,7 +115,7 @@ bool InitLocomotion(uint8_t Priority){
     // initialize rollover counters
     rolloverL = 0;
     rolloverR = 0;
-    CurrentState = InitPState;
+    CurrentState = InitState;
     
     // disable analog select
     ANSELA = 0;
@@ -197,62 +198,157 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
 
   switch (CurrentState)
   {
-    case InitPState:        // If current state is initial Pseudo State
+    case InitState:        // If current state is initial State
     {
-        if (ThisEvent.EventType == ES_INIT){
-            puts("Locomotion Service:");
-            printf("\rES_INIT received in Service %d\r\n", MyPriority);
-            // go to running state
-            CurrentState = Waiting;
+        // determine starting state based on racer position
+    }
+    break;
+
+    case WaitingState:       
+    {
+        // stop
+    }
+    break;
+    
+    case FollowPathState:       
+    {
+        if (ThisEvent.EventType == ES_BOTH_DETECT){
+            FollowCircle();
+            CurrentState = KeepPathState;
         }
-        
+        else if (ThisEvent.EventType == ES_GAME_END){
+            Stop();
+            CurrentState = WaitingState;
+        }
     }
     break;
-
-    case Waiting:       
+    
+    case KeepPathState:       
     {
-      if ((ThisEvent.EventType == ES_RECEIVE) && (ThisEvent.EventParam == 20))
-      {
-        ES_Timer_InitTimer(OUR_TIMER, 4000);
-        ES_Timer_StartTimer(OUR_TIMER);
-        
-        ES_Timer_InitTimer(STOP_TIMER, 9800);
-        ES_Timer_StartTimer(STOP_TIMER);
-        DriveForward();
-        CurrentState = DrivingForward;
-      }
-
+        switch (ThisEvent.EventType){
+            case ES_TX_BATON:{
+                Stop();
+                CurrentState = StoppedState;
+            }
+            break;
+            
+            case ES_LEFT_DETECT:{
+                TurnLeft();
+                CurrentState = TurnLeftState;
+            }
+            break;
+            
+            case ES_RIGHT_DETECT:{
+                TurnRight();
+                CurrentState = TurnRightState;
+            }
+            break;
+            
+            case ES_GAME_END:{
+                Stop();
+                CurrentState = WaitingState;
+            }
+            break;
+            
+            default:
+            {}
+            break;
+        }
     }
     break;
     
-    case DrivingForward:       
+    case TurnLeftState:       
     {
-      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == OUR_TIMER))
-      {
-        ES_Timer_InitTimer(OUR_TIMER, 1800);
-        ES_Timer_StartTimer(OUR_TIMER);
-        TurnLeft();
-        CurrentState = Turning;
-      }
-      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == STOP_TIMER))
-      {
-          Stop();
-          CurrentState = Waiting;
-      }
+        if (ThisEvent.EventType == ES_BOTH_DETECT){
+            DriveForward();
+            CurrentState = StraightState;
+        }
+        else if (ThisEvent.EventType == ES_GAME_END){
+            Stop();
+            CurrentState = WaitingState;
+        }
     }
     break;
     
-    case Turning:       
+    case TurnRightState:       
     {
-      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == OUR_TIMER))
-      {
-        DriveForward();
-        CurrentState = DrivingForward;
-      }
+        if (ThisEvent.EventType == ES_BOTH_DETECT){
+            DriveForward();
+            CurrentState = StraightState;
+        }
+        else if (ThisEvent.EventType == ES_GAME_END){
+            Stop();
+            CurrentState = WaitingState;
+        }
     }
     break;
     
+    case StraightState:       
+    {
+        switch (ThisEvent.EventType){
+            case ES_TX_BATON:{
+                Stop();
+                CurrentState = StoppedState;
+            }
+            break;
+            
+            case ES_LEFT_DETECT:{
+                TurnLeft();
+                CurrentState = TurnLeftState;
+            }
+            break;
+            
+            case ES_RIGHT_DETECT:{
+                TurnRight();
+                CurrentState = TurnRightState;
+            }
+            break;
+            
+            case ES_GAME_END:{
+                Stop();
+                CurrentState = WaitingState;
+            }
+            break;
+            
+            default:
+            {}
+            break;
+        }
+    }
+    break;
     
+    case StoppedState:
+    {
+        if (ThisEvent.EventType == ES_FREQ_CHANGE){
+            // set new system timer for inching forward
+            ES_Timer_InitTimer(INCH_TIMER, INCH_TIME);
+            ES_Timer_StartTimer(INCH_TIMER);
+            
+            CurrentState = InchingState;
+        }
+        else if (ThisEvent.EventType == ES_RX_BATON){
+            FollowCircle();
+            CurrentState = FollowPathState;
+        }
+        else if (ThisEvent.EventType == ES_GAME_END){
+            Stop();
+            CurrentState = WaitingState;
+        }
+    }
+    break;
+    
+    case InchingState:
+    {
+        if((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == INCH_TIMER)){
+            Stop();
+            CurrentState = StoppedState;
+        }
+        else if (ThisEvent.EventType == ES_GAME_END){
+            Stop();
+            CurrentState = WaitingState;
+        }
+    }
+    break;
     
     default:
     {}

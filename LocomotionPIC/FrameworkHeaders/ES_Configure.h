@@ -266,7 +266,14 @@ typedef enum
   ES_STOP,
   ES_FOLLOWCIRCLE,
   ES_RECEIVE,
-          ES_PRINT
+  ES_PRINT,
+  ES_GAME_END,
+  ES_BOTH_DETECT,
+  ES_TX_BATON, 
+  ES_RX_BATON,
+  ES_LEFT_DETECT,
+  ES_RIGHT_DETECT,
+  ES_FREQ_CHANGE
           
 }ES_EventType_t;
 
@@ -312,7 +319,7 @@ typedef enum
 // Unlike services, any combination of timers may be used and there is no
 // priority in servicing them
 #define TIMER_UNUSED ((pPostFunc)0)
-#define TIMER0_RESP_FUNC TIMER_UNUSED
+#define TIMER0_RESP_FUNC PostLocomotion
 #define TIMER1_RESP_FUNC TIMER_UNUSED
 #define TIMER2_RESP_FUNC TIMER_UNUSED
 #define TIMER3_RESP_FUNC TIMER_UNUSED
@@ -338,6 +345,7 @@ typedef enum
 
  #define OUR_TIMER 6
  #define STOP_TIMER 7
+ #define INCH_TIMER 1
 
 
 #endif /* ES_CONFIGURE_H */

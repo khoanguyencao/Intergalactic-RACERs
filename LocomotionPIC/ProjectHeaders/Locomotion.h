@@ -20,7 +20,7 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent);
 
 typedef enum
 {
-  InitPState=0, Waiting, DrivingForward, Turning
+  InitState=0, WaitingState, FollowPathState, KeepPathState, TurnLeftState, TurnRightState, StraightState, StoppedState, InchingState
 }LocoState_t;
 
 // set up union for combining overflow with IC time
