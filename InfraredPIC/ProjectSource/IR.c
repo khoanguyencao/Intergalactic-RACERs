@@ -48,7 +48,7 @@
 
 // #define PERIOD1 2500
 // #define PERIOD2 5500
-#define TOLERENCE 5
+#define TOLERENCE 10
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -70,7 +70,7 @@ static void StartTransmitRear(uint16_t period);
 static void StopTransmitFront();
 static void StopTransmitRear();
 static void StartReceiveFront();
-static void StartReceiveRear());
+static void StartReceiveRear();
 static void StopReceiveFront();
 static void StopReceiveRear();
 
@@ -79,18 +79,25 @@ static void StopReceiveRear();
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match htat of enum in header file
 static IRState_t CurrentState;
-static volatile IRState_t PretendState;
-// with the introduction of Gen2, we need a module level Priority var as well
 static uint8_t MyPriority;
-static uint16_t PERIOD1 = 1500;
-static uint16_t PERIOD2 = 3500;
+
+static uint16_t PERIOD1 = 0;
+static uint16_t PERIOD2 = 0;
 static uint8_t leftdetected = 0;
 static volatile uint8_t rightdetected = 0;
 
 static volatile Timer myTimer2;
 static volatile Timer myTimer3;
-static volatile uint8_t TxNum;  
-static volatile uint8_t lastTxNum = 0;
+
+static volatile uint8_t TxNum = 0; 
+static volatile uint8_t postTxNum = 0;
+static volatile uint8_t lastTxNum = 54;
+static volatile uint8_t lastlastTxNum = 99;
+static volatile uint8_t firstFallRear = 0;
+static volatile uint32_t periodRear = 0;
+static volatile uint32_t lastFallRear = 0;
+static volatile uint8_t currentTxNum = 0;
+
 static volatile uint8_t edgeNum = 0;
 
 static uint8_t firstRiseFrontLeft = 0;
@@ -103,16 +110,11 @@ static volatile uint32_t periodFrontRight = 0;
 static volatile uint32_t lastRiseFrontRight = 0;
 static volatile uint8_t lastrightdetect = 0;
 
-static volatile uint8_t firstFallRear = 0;
-static volatile uint32_t periodRear = 0;
-static volatile uint32_t lastFallRear = 0;
-static volatile uint8_t referenceTxNum = 99;
-static volatile uint8_t currentTxNum = 0;
-
 static bool isBlueTeam;
 static bool isRobotA;
 static bool isRobotB;
 static bool isRobotC;
+static uint16_t loadNum;
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -226,7 +228,7 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
       {
         // Further init based on leader SPI 
         RobotState(ThisEvent.EventParam); 
-        if (robotA){
+        if (isRobotA){
           StartReceiveFront();
           CurrentState = FollowingPath;
         } else {
@@ -383,7 +385,7 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
             StopReceiveFront();
             StopTransmitFront();
             StartTransmitRear(PERIOD1);
-            PostLeader(175);
+            SendLeader(175);
             CurrentState = Waiting2RxBaton;
           }
           break;
@@ -406,7 +408,11 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
 
     case Termination:
     {
-      // Termination - no events 
+      // Termination - Stop everything
+        StopTransmitFront();
+        StopTransmitRear();
+        StopReceiveRear();
+        StopReceiveFront();
     }
     break;
 
@@ -496,16 +502,6 @@ void __ISR ( _TIMER_3_VECTOR , IPL6SOFT ) _Timer3OverflowISR ( void ){
     /* Increment rolloverCount */
     myTimer3. RealTime. rolloverCount++;
 
-//    if (PretendState == SendingNumLaps ) { //TODO
-//        numBlink ++; 
-//        if (numBlink == TxNum) {
-//            OC1RS = 0; // Write 0% Duty cycle for a long pulse
-//        }
-//        else if (numBlink == (TxNum+5)) {
-//            OC1RS = PERIOD1 / 2; // Rewrite 50% duty cycle to OCxRS after a pulse
-//            numBlink = 0; // Clear numBlinks
-//        }
-//    }
 }
 
 //A function to initialize Input Capture 4 using timer2 
@@ -544,9 +540,11 @@ void _initIC_Rear(void){
     firstFallRear = 0;
     periodRear = 0;
     lastFallRear = 0;
-    referenceTxNum = 99;
+    postTxNum = 0;
+    lastlastTxNum = 99;
     currentTxNum = 0;
-    lastTxNum = 0;
+    lastTxNum = 54;
+    TxNum = 0;
     
     /* Turn on input capture */
     IC4CONbits.ON = 1;
@@ -637,7 +635,6 @@ void _initIC_FrontLeft(){
     IC2CONbits.ON = 1;
 }
 
-
 //For counting number of blinks for transfering communication. 
 //Posts ES_RX_BATON once lap count has been double-checked
 void __ISR(_INPUT_CAPTURE_4_VECTOR,IPL7SOFT)_ICRearISR(void){
@@ -659,32 +656,41 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR,IPL7SOFT)_ICRearISR(void){
         
         /* Calculate Period */
         periodRear = myTimer2.RealTime.buffRead - lastFallRear;
+        if ( periodRear >= 0xFFFF0000 ){
+            periodRear =0xFFFF - lastFallRear + myTimer2.RealTime.buffRead;
+        }
+        
         //printf("%u\n", periodRear);
-        if ((periodRear <= (PERIOD1 + 10*TOLERENCE)) && (periodRear >= (PERIOD1 - 10*TOLERENCE))){
+        if ((periodRear <= (PERIOD1 + 2*TOLERENCE)) && (periodRear >= (PERIOD1 - 2*TOLERENCE))){
             /* Count number of transfers */
              currentTxNum++;
         }
-        else if ((periodRear >= (5*PERIOD1-50*TOLERENCE)) && (periodRear <= (5*PERIOD1 + 50*TOLERENCE))){ //one cycle of blinking complete. should be 6*period.
+        else if ((periodRear >= (5*PERIOD1)) && (periodRear <= (6*PERIOD1))){ //one cycle of blinking complete. should be 6*period.
             currentTxNum++;  //count last rise
-            referenceTxNum = currentTxNum;
-            //printf("%u\n", currentTxNum);
-        }
-
-        if((currentTxNum == referenceTxNum)){//&& (lastTxNum == 0)&& (referenceTxNum != 99)){  // double checking we read correct # of transfers
-            //printf("%u\n", currentTxNum);
-            
+            //referenceTxNum = currentTxNum;
+            //printf("%u ", referenceTxNum);
+            if ((postTxNum == 0) && (lastTxNum == currentTxNum) && (lastlastTxNum == lastTxNum)) {   //only post one time 
+                //printf("%u\n", referenceTxNum);
                 /* PostEvent ES_RX_BATON with param currentTxNum */
                 ThisEvent.EventType = ES_RX_BATON;
                 ThisEvent.EventParam = currentTxNum;
                 PostIR(ThisEvent);
-                lastTxNum = 1;
+                
+                /* Store new transfer number into local variable TxNum */
+                TxNum = currentTxNum; 
+                
+                /*Update*/
+                postTxNum = 1;
+                lastTxNum = 54;
+                lastlastTxNum = 99;
+            }
             
-            /* Store new transfer number into local variable TxNum */
-            TxNum = currentTxNum; 
-            
+                
             /* Reset currentTxNum & referenceTxNum */
+            lastlastTxNum = lastTxNum;
+            lastTxNum = currentTxNum;
             currentTxNum = 0;
-            referenceTxNum = 99;
+
             
         }
     } 
@@ -709,19 +715,19 @@ void __ISR (_INPUT_CAPTURE_2_VECTOR, IPL7SOFT ) IC_Front_Left_ISR ( void ){
         periodFrontLeft = myTimer2.RealTime.buffRead - lastRiseFrontLeft;
         if ((periodFrontLeft <= (PERIOD1 + TOLERENCE)) && (periodFrontLeft >= (PERIOD1 - TOLERENCE))){
             leftdetected = 1;
-            if (lastleftdetect!= leftdetected){
-                ThisEvent.EventType = ES_LEFTDETECT;
-                ThisEvent.EventParam = leftdetected;
-                PostIR(ThisEvent);
-           }
+//            if (lastleftdetect!= leftdetected){
+//                ThisEvent.EventType = ES_LEFTDETECT;
+//                ThisEvent.EventParam = leftdetected;
+//                PostIR(ThisEvent);
+//           }
         }
         else if ((periodFrontLeft <= (PERIOD2 + TOLERENCE)) && (periodFrontLeft >= (PERIOD2 - TOLERENCE))){
             leftdetected = 2;
-            if (lastleftdetect!= leftdetected){
-                ThisEvent.EventType = ES_LEFTDETECT;
-                ThisEvent.EventParam = leftdetected;
-                PostIR(ThisEvent);
-            }
+//            if (lastleftdetect!= leftdetected){
+//                ThisEvent.EventType = ES_LEFTDETECT;
+//                ThisEvent.EventParam = leftdetected;
+//                PostIR(ThisEvent);
+//            }
         }
     } 
 
@@ -746,20 +752,20 @@ void __ISR (_INPUT_CAPTURE_1_VECTOR, IPL7SOFT ) IC_Front_Right_ISR ( void ){
         periodFrontRight = myTimer2.RealTime.buffRead - lastRiseFrontRight;
         if ((periodFrontRight <= (PERIOD1 + TOLERENCE)) && (periodFrontRight >= (PERIOD1 - TOLERENCE))){
             rightdetected = 1;
-            if (lastrightdetect!= rightdetected){
-                ThisEvent.EventType = ES_RIGHTDETECT;
-                ThisEvent.EventParam = rightdetected;
-                PostIR(ThisEvent);
-            }
+//            if (lastrightdetect!= rightdetected){
+//                ThisEvent.EventType = ES_RIGHTDETECT;
+//                ThisEvent.EventParam = rightdetected;
+//                PostIR(ThisEvent);
+//            }
            
         }
         else if ((periodFrontRight <= (PERIOD2 + TOLERENCE)) && (periodFrontRight >= (PERIOD2 - TOLERENCE))){
            rightdetected = 2;
-           if (lastrightdetect!= rightdetected){
-                ThisEvent.EventType = ES_RIGHTDETECT;
-                ThisEvent.EventParam = rightdetected;
-                PostIR(ThisEvent);
-            }
+//           if (lastrightdetect!= rightdetected){
+//                ThisEvent.EventType = ES_RIGHTDETECT;
+//                ThisEvent.EventParam = rightdetected;
+//                PostIR(ThisEvent);
+//            }
         }
     } 
 
@@ -773,64 +779,61 @@ void __ISR (_INPUT_CAPTURE_1_VECTOR, IPL7SOFT ) IC_Front_Right_ISR ( void ){
 }
 
 // initialization of Timer 4 needed for the Detection Posting ISR
-//void initPostingTimer(void){
-//    T4CONbits.ON = 0;               // disable timer
-//    T4CONbits.TCS = 0;              // select internal PBCLK source
-//    T4CONbits.TCKPS = 0b110;        // select 1:64 prescale
-//    TMR4 = 0;                       // clear timer 2 register
-//    PR4 = 31249;                   // set period register as 0.1sec
-//    IPC4bits.T4IP = 7;              // set interrupt priority to 7
-//    IFS0CLR = _IFS0_T4IF_MASK;    // clear any pending interrupt
-//    IEC0SET = _IEC0_T4IE_MASK;    // local enable
-//    __builtin_enable_interrupts();  // global enable
-//    T4CONbits.ON = 1;               // enable timer
-//}
-//
-
+void initPostingTimer(void){
+    T4CONbits.ON = 0;               // disable timer
+    T4CONbits.TCS = 0;              // select internal PBCLK source
+    T4CONbits.TCKPS = 0b110;        // select 1:64 prescale
+    TMR4 = 0;                       // clear timer 2 register
+    PR4 = 31249;                   // set period register as 0.1sec
+    IPC4bits.T4IP = 7;              // set interrupt priority to 7
+    IFS0CLR = _IFS0_T4IF_MASK;    // clear any pending interrupt
+    IEC0SET = _IEC0_T4IE_MASK;    // local enable
+    __builtin_enable_interrupts();  // global enable
+    T4CONbits.ON = 1;               // enable timer
+}
   
 // triggers every 0.1s and posts ES_DETECT 1,2,3 or ES_FREQ_2 events
-//void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
-//  static ES_Event_t OldEvent = ES_NO_DETECT;  
-//  static ES_Event_t ThisEvent;
-//    
-//    IFS0CLR = _IFS0_T4IF_MASK;    // clear interrupt
-//  
-//  if ((leftdetected == 1) && (rightdetected == 1)){
-//    ThisEvent.EventType = ES_BOTH_DETECT;
-//        leftdetected = 0;
-//        rightdetected = 0;
-//  }
-//    
-//    else if ((leftdetected == 1) && (rightdetected == 0)){
-//        ThisEvent.EventType = ES_LEFTDETECT;
-//        leftdetected = 0;
-//        rightdetected = 0;
-//    }
-//    
-//    else if ((leftdetected == 0) && (rightdetected == 1)){
-//        ThisEvent.EventType = ES_RIGHTDETECT;
-//        leftdetected = 0;
-//        rightdetected = 0;
-//    }
-//    
-//    else if ((leftdetected == 0) && (rightdetected == 0)){
-//        ThisEvent.EventType = ES_NO_DETECT;
-//    }
-//    
-//    else if ((leftdetected == 2) || (rightdetected == 2)){
-//        ThisEvent.EventType = ES_FREQ_CHANGE;
-//        leftdetected = 0;
-//        rightdetected = 0;
-//    }
-//    
-//    if (OldEvent != ThisEvent){
-//        PosttoIRService(ThisEvent);
-//    }
-//    
-//    OldEvent = ThisEvent;
-//}
-//
-
+void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
+  static volatile ES_Event_t OldEvent;  
+  OldEvent.EventType = ES_NO_DETECT;
+  static volatile ES_Event_t ThisEvent;
+    
+    IFS0CLR = _IFS0_T4IF_MASK;    // clear interrupt
+  
+  if ((leftdetected == 1) && (rightdetected == 1)){
+    ThisEvent.EventType = ES_BOTH_DETECT;
+        leftdetected = 0;
+        rightdetected = 0;
+  }
+    
+    else if ((leftdetected == 1) && (rightdetected == 0)){
+        ThisEvent.EventType = ES_LEFTDETECT;
+        leftdetected = 0;
+        rightdetected = 0;
+    }
+    
+    else if ((leftdetected == 0) && (rightdetected == 1)){
+        ThisEvent.EventType = ES_RIGHTDETECT;
+        leftdetected = 0;
+        rightdetected = 0;
+    }
+    
+    else if ((leftdetected == 0) && (rightdetected == 0)){
+        ThisEvent.EventType = ES_NO_DETECT;
+    }
+    
+    else if ((leftdetected == 2) || (rightdetected == 2)){
+        ThisEvent.EventType = ES_FREQ_CHANGE;
+        leftdetected = 0;
+        rightdetected = 0;
+    }
+    
+    if ((OldEvent.EventType != ThisEvent.EventType)){
+        PostIR(ThisEvent);
+    }
+    
+    OldEvent.EventType = ThisEvent.EventType;
+}
 
 // sets up OC1 to generate PWM using Timer 3, 
 void Init_FrontPWM(uint16_t period){
@@ -866,7 +869,6 @@ void Init_FrontPWM(uint16_t period){
     IEC0SET = _IEC0_OC1IE_MASK; // Enable OC1 interrupt
 }
 
-
 // sets up OC2 to generate PWM using Timer 3. also used to change frequency.
 void Init_RearPWM(uint16_t period){
 
@@ -887,15 +889,14 @@ void Init_RearPWM(uint16_t period){
     OC2CONbits.OC32 = 0;        // use 16 bit timer source
     OC2CONbits.OCTSEL = 1;      // use Timer 3 as clock source
     OC2CONbits.OCM = 0b110;     // use PWM mode with faults disabled
-    OC2RS = 25*period/100;      // set OC1RS duty cycle ~50%
-    OC2R = 25*period/100;       // set OC1R duty cycle ~50%
+    OC2RS = 50*period/100;      // set OC1RS duty cycle ~50%
+    OC2R = 50*period/100;       // set OC1R duty cycle ~50%
 
     T3CONbits.ON = 1;           // enable timer
     OC2CONbits.ON = 1;          // enable output compare
 }
 
 void __ISR(_OUTPUT_COMPARE_1_VECTOR, IPL7SOFT) OC1_FrontPWMISR (void){
-    static volatile uint16_t loadNum = 750; //TODO
     /* Increment Edge count */
     edgeNum ++;
 
@@ -972,7 +973,7 @@ void __ISR(_SPI_1_VECTOR, IPL7SOFT) _SPI1ISR(){
       ES_Event_t ReceiveEvent;
       ReceiveEvent.EventType = ES_RECEIVE;
       ReceiveEvent.EventParam = bufRead;
-      PostSPIFollower(ReceiveEvent);
+      PostIR(ReceiveEvent);
     }
     // Send the next message in the queue if present 
     if(!isQueueEmpty(1)){
@@ -1028,6 +1029,7 @@ void __ISR(_SPI_1_VECTOR, IPL7SOFT) _SPI1ISR(){
     PERIOD1 = 1500;
     PERIOD2 = 3500;
   }
+  loadNum = PERIOD1/2;
  }
 
 /***************************************************************************

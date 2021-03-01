@@ -131,7 +131,7 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>snap</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>2.50</languageToolchainVersion>
+        <languageToolchainVersion>2.41</languageToolchainVersion>
         <platform>4</platform>
       </toolsSet>
       <packs>
@@ -634,7 +634,7 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>snap</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>2.50</languageToolchainVersion>
+        <languageToolchainVersion>2.41</languageToolchainVersion>
         <platform>4</platform>
       </toolsSet>
       <packs>
@@ -801,6 +801,8 @@
         <property key="wpo-lto" value="false"/>
         <appendMe value="-std=gnu99"/>
       </C32Global>
+      <item path="ProjectSource/IRTestHarness.c" ex="true" overriding="false">
+      </item>
       <item path="ProjectSource/TestHarnessService0.c" ex="true" overriding="false">
         <C32>
         </C32>
