@@ -266,14 +266,7 @@ typedef enum
   ES_STOP,
   ES_FOLLOWCIRCLE,
   ES_RECEIVE,
-  ES_PRINT,
-  ES_GAME_END,
-  ES_BOTH_DETECT,
-  ES_TX_BATON, 
-  ES_RX_BATON,
-  ES_LEFT_DETECT,
-  ES_RIGHT_DETECT,
-  ES_FREQ_CHANGE
+  ES_PRINT
           
 }ES_EventType_t;
 
@@ -320,13 +313,13 @@ typedef enum
 // priority in servicing them
 #define TIMER_UNUSED ((pPostFunc)0)
 #define TIMER0_RESP_FUNC PostLocomotion
-#define TIMER1_RESP_FUNC TIMER_UNUSED
+#define TIMER1_RESP_FUNC PostLocomotion
 #define TIMER2_RESP_FUNC TIMER_UNUSED
 #define TIMER3_RESP_FUNC TIMER_UNUSED
 #define TIMER4_RESP_FUNC TIMER_UNUSED
 #define TIMER5_RESP_FUNC TIMER_UNUSED
-#define TIMER6_RESP_FUNC PostLocomotion
-#define TIMER7_RESP_FUNC PostLocomotion
+#define TIMER6_RESP_FUNC TIMER_UNUSED
+#define TIMER7_RESP_FUNC TIMER_UNUSED
 #define TIMER8_RESP_FUNC TIMER_UNUSED
 #define TIMER9_RESP_FUNC TIMER_UNUSED
 #define TIMER10_RESP_FUNC TIMER_UNUSED
@@ -343,9 +336,9 @@ typedef enum
 // the timer number matches where the timer event will be routed
 // These symbolic names should be changed to be relevant to your application
 
- #define OUR_TIMER 6
- #define STOP_TIMER 7
- #define INCH_TIMER 1
+#define INCH_TIMER 1
+#define START_WAIT_TIMER 2
+ 
 
 
 #endif /* ES_CONFIGURE_H */
