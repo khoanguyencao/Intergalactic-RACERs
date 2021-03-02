@@ -48,6 +48,7 @@
 
 // #define PERIOD1 2500
 // #define PERIOD2 5500
+#define TEST
 #define TOLERENCE 10
 
 /*---------------------------- Module Functions ---------------------------*/
@@ -61,6 +62,7 @@ void _initIC_FrontRight();
 void _initIC_Rear();
 void _initTimer3();
 void _initTimer2();
+void initPostingTimer(void);
 static void InitSPI();
 static void SendLeader(uint8_t message);
 static void RobotState(uint16_t message);
@@ -74,6 +76,8 @@ static void StartReceiveRear();
 static void StopReceiveFront();
 static void StopReceiveRear();
 
+static volatile ES_Event_t OldEvent;  
+static volatile ES_Event_t ThatEvent;
 
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
@@ -114,7 +118,7 @@ static bool isBlueTeam;
 static bool isRobotA;
 static bool isRobotB;
 static bool isRobotC;
-static uint16_t loadNum;
+static volatile uint16_t loadNum;
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -784,7 +788,7 @@ void initPostingTimer(void){
     T4CONbits.TCS = 0;              // select internal PBCLK source
     T4CONbits.TCKPS = 0b110;        // select 1:64 prescale
     TMR4 = 0;                       // clear timer 2 register
-    PR4 = 31249;                   // set period register as 0.1sec
+    PR4 = 0xFFFF;                   // set period register as 0.1sec
     IPC4bits.T4IP = 7;              // set interrupt priority to 7
     IFS0CLR = _IFS0_T4IF_MASK;    // clear any pending interrupt
     IEC0SET = _IEC0_T4IE_MASK;    // local enable
@@ -794,46 +798,48 @@ void initPostingTimer(void){
   
 // triggers every 0.1s and posts ES_DETECT 1,2,3 or ES_FREQ_2 events
 void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
-  static volatile ES_Event_t OldEvent;  
-  OldEvent.EventType = ES_NO_DETECT;
-  static volatile ES_Event_t ThisEvent;
-    
-    IFS0CLR = _IFS0_T4IF_MASK;    // clear interrupt
-  
-  if ((leftdetected == 1) && (rightdetected == 1)){
-    ThisEvent.EventType = ES_BOTH_DETECT;
-        leftdetected = 0;
-        rightdetected = 0;
-  }
+    OldEvent.EventType = ES_NO_DETECT;
+    static volatile uint8_t var;
+    static volatile uint8_t var1;
+
+    if ((leftdetected == 1) && (rightdetected == 1)){
+ 
+        ThatEvent.EventType = ES_BOTH_DETECT;
+        var = 4;
+        
+    }
     
     else if ((leftdetected == 1) && (rightdetected == 0)){
-        ThisEvent.EventType = ES_LEFTDETECT;
-        leftdetected = 0;
-        rightdetected = 0;
+        ThatEvent.EventType = ES_LEFTDETECT;
+        var = 3;
     }
     
     else if ((leftdetected == 0) && (rightdetected == 1)){
-        ThisEvent.EventType = ES_RIGHTDETECT;
-        leftdetected = 0;
-        rightdetected = 0;
+        ThatEvent.EventType = ES_RIGHTDETECT;
+        var = 2;
     }
     
     else if ((leftdetected == 0) && (rightdetected == 0)){
-        ThisEvent.EventType = ES_NO_DETECT;
+        ThatEvent.EventType = ES_NO_DETECT;
+        var = 1;
     }
     
-    else if ((leftdetected == 2) || (rightdetected == 2)){
-        ThisEvent.EventType = ES_FREQ_CHANGE;
-        leftdetected = 0;
-        rightdetected = 0;
+    else if ((leftdetected == 2) || (rightdetected == 2)) {
+        ThatEvent.EventType = ES_FREQ_CHANGE;
+        var = 0;
     }
     
-    if ((OldEvent.EventType != ThisEvent.EventType)){
-        PostIR(ThisEvent);
+    if (var1 != var){
+        PostIR(ThatEvent);
     }
-    
-    OldEvent.EventType = ThisEvent.EventType;
+     
+     leftdetected =0;
+     rightdetected =0;
+     var1 = var;
+     
+     IFS0CLR = _IFS0_T4IF_MASK;    // clear interrupt
 }
+
 
 // sets up OC1 to generate PWM using Timer 3, 
 void Init_FrontPWM(uint16_t period){
@@ -1079,3 +1085,4 @@ static void StopReceiveRear(){
   IEC0CLR = _IEC0_IC4IE_MASK;
   IC4CONbits.ON = 0;
 }
+
