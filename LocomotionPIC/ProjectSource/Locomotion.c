@@ -23,7 +23,7 @@
 #define PI_PERIOD 12500
 #define MAX_RPM 70
 #define INCH_TIME 500
-#define WAIT_TIME 1000
+#define WAIT_TIME 500
 
 #define LEFT 0
 #define RIGHT 1
@@ -226,7 +226,7 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
                     Stop();
                     // set new system timer for waiting to inch forward
                     ES_Timer_InitTimer(START_WAIT_TIMER, WAIT_TIME);
-                    ES_Timer_StartTimer(START_WAIT_TIMER);  
+                    // ES_Timer_StartTimer(START_WAIT_TIMER);  
                     CurrentState = StoppedState;
                 }
                 break;

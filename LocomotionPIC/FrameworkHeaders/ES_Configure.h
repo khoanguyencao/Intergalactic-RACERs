@@ -336,8 +336,8 @@ typedef enum
 // the timer number matches where the timer event will be routed
 // These symbolic names should be changed to be relevant to your application
 
-#define INCH_TIMER 1
-#define START_WAIT_TIMER 2
+#define INCH_TIMER 0
+#define START_WAIT_TIMER 1
  
 
 
