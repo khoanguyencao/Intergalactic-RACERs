@@ -153,6 +153,7 @@ ES_Event_t RunLocomotionTestHarness(ES_Event_t ThisEvent)
         // init as racer a
         if ('a' == ThisEvent.EventParam)
       {
+            printf("racer_a\r\n");
           ThisEvent.EventType = ES_RECEIVE;
           ThisEvent.EventParam = RACER_A;
           PostLocomotion(ThisEvent);
@@ -240,6 +241,8 @@ ES_Event_t RunLocomotionTestHarness(ES_Event_t ThisEvent)
           ThisEvent.EventParam = GAME_END;
           PostLocomotion(ThisEvent);
       }
+        
+        
       
     }
     break;

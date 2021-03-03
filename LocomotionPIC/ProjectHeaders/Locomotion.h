@@ -22,7 +22,7 @@
 #define TRANSMIT_BATON 12
 // IR to loco parameters
 #define LEFT_DETECTED 125
-#define RIGHT_DETECTED 225
+#define RIGHT_DETECTED 200
 #define BOTH_DETECTED 150
 #define RECEIVE_BATON 100
 #define FREQ_CHANGE 175

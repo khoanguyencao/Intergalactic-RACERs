@@ -30,7 +30,7 @@
 #define FORWARD 2
 #define BACKWARD 3
 
-#define FWD_SPEED 70// speed for going straight forward(in duty cycles)
+#define FWD_SPEED 90// speed for going straight forward(in duty cycles)
 #define BKWD_SPEED 50// speed for going straight backward
 #define TURN_SPEED_1 70// speed for turning the racer on one wheel 
 #define TURN_SPEED_2 70// speed for turning racer on other wheel 
@@ -855,6 +855,7 @@ void __ISR(_SPI_1_VECTOR, IPL6SOFT) _SPI1ISR(){
     bufRead = SPI1BUF;
     IFS1CLR = _IFS1_SPI1RXIF_MASK;
     if (bufRead != 0){
+        printf("ES_RECEIVE param: %u\r\n", bufRead);
       ES_Event_t ReceiveEvent;
       ReceiveEvent.EventType = ES_RECEIVE;
       ReceiveEvent.EventParam = bufRead;
