@@ -49,7 +49,7 @@
 // #define PERIOD1 2500
 // #define PERIOD2 5500
 #define TEST
-#define TOLERENCE 10
+#define TOLERENCE 20
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -719,19 +719,9 @@ void __ISR (_INPUT_CAPTURE_2_VECTOR, IPL7SOFT ) IC_Front_Left_ISR ( void ){
         periodFrontLeft = myTimer2.RealTime.buffRead - lastRiseFrontLeft;
         if ((periodFrontLeft <= (PERIOD1 + TOLERENCE)) && (periodFrontLeft >= (PERIOD1 - TOLERENCE))){
             leftdetected = 1;
-//            if (lastleftdetect!= leftdetected){
-//                ThisEvent.EventType = ES_LEFTDETECT;
-//                ThisEvent.EventParam = leftdetected;
-//                PostIR(ThisEvent);
-//           }
         }
         else if ((periodFrontLeft <= (PERIOD2 + TOLERENCE)) && (periodFrontLeft >= (PERIOD2 - TOLERENCE))){
             leftdetected = 2;
-//            if (lastleftdetect!= leftdetected){
-//                ThisEvent.EventType = ES_LEFTDETECT;
-//                ThisEvent.EventParam = leftdetected;
-//                PostIR(ThisEvent);
-//            }
         }
     } 
 
@@ -756,20 +746,9 @@ void __ISR (_INPUT_CAPTURE_1_VECTOR, IPL7SOFT ) IC_Front_Right_ISR ( void ){
         periodFrontRight = myTimer2.RealTime.buffRead - lastRiseFrontRight;
         if ((periodFrontRight <= (PERIOD1 + TOLERENCE)) && (periodFrontRight >= (PERIOD1 - TOLERENCE))){
             rightdetected = 1;
-//            if (lastrightdetect!= rightdetected){
-//                ThisEvent.EventType = ES_RIGHTDETECT;
-//                ThisEvent.EventParam = rightdetected;
-//                PostIR(ThisEvent);
-//            }
-           
         }
         else if ((periodFrontRight <= (PERIOD2 + TOLERENCE)) && (periodFrontRight >= (PERIOD2 - TOLERENCE))){
            rightdetected = 2;
-//           if (lastrightdetect!= rightdetected){
-//                ThisEvent.EventType = ES_RIGHTDETECT;
-//                ThisEvent.EventParam = rightdetected;
-//                PostIR(ThisEvent);
-//            }
         }
     } 
 
@@ -805,17 +784,20 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
     if ((leftdetected == 1) && (rightdetected == 1)){
  
         ThatEvent.EventType = ES_BOTH_DETECT;
+        ThatEvent.EventParam = 1;
         var = 4;
         
     }
     
     else if ((leftdetected == 1) && (rightdetected == 0)){
         ThatEvent.EventType = ES_LEFTDETECT;
+        ThatEvent.EventParam = 1;
         var = 3;
     }
     
     else if ((leftdetected == 0) && (rightdetected == 1)){
         ThatEvent.EventType = ES_RIGHTDETECT;
+        ThatEvent.EventParam = 1;
         var = 2;
     }
     
@@ -824,7 +806,7 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
         var = 1;
     }
     
-    else if ((leftdetected == 2) || (rightdetected == 2)) {
+    else if ((leftdetected == 2) && (rightdetected == 2)) {
         ThatEvent.EventType = ES_FREQ_CHANGE;
         var = 0;
     }
@@ -839,7 +821,6 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
      
      IFS0CLR = _IFS0_T4IF_MASK;    // clear interrupt
 }
-
 
 // sets up OC1 to generate PWM using Timer 3, 
 void Init_FrontPWM(uint16_t period){
@@ -857,9 +838,6 @@ void Init_FrontPWM(uint16_t period){
     PR3 = 0xFFFF;            // set period register
     TMR3 = 0;                   // clear timer 3 register
     edgeNum = 0; 
-//    IFS0CLR = _IFS0_T3IF_MASK;  // Clear the timer3 interrupt 
-//    IEC0CLR = _IEC0_T3IE_MASK;  // Disable Timer 3 interrupts
-//    IEC0SET = _IEC0_T3IE_MASK; 
         
     OC1CONbits.SIDL = 0;        // disable idle mode
     OC1CONbits.OC32 = 0;        // use 16 bit timer source
