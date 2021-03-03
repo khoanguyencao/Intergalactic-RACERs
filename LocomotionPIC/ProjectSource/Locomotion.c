@@ -22,6 +22,8 @@
 #define RPM_SCALE 5208
 #define PI_PERIOD 12500
 #define MAX_RPM 70
+#define INCH_TIME 500
+#define WAIT_TIME 500
 
 #define LEFT 0
 #define RIGHT 1
@@ -30,8 +32,8 @@
 
 #define FWD_SPEED 70// speed for going straight forward(in duty cycles)
 #define BKWD_SPEED 50// speed for going straight backward
-#define TURN_SPEED_1 50// speed for turning the racer on one wheel 
-#define TURN_SPEED_2 50// speed for turning racer on other wheel 
+#define TURN_SPEED_1 70// speed for turning the racer on one wheel 
+#define TURN_SPEED_2 70// speed for turning racer on other wheel 
 #define CIRC_L_SPEED 82// speed for left wheel when following the path
 #define CIRC_R_SPEED 96// speed for right wheel when following the path
 #define STOP_SPEED 5// speed for stopping the racer
@@ -114,7 +116,7 @@ bool InitLocomotion(uint8_t Priority){
     // initialize rollover counters
     rolloverL = 0;
     rolloverR = 0;
-    CurrentState = InitPState;
+    CurrentState = InitState;
     
     // disable analog select
     ANSELA = 0;
@@ -197,61 +199,250 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
 
   switch (CurrentState)
   {
-    case InitPState:        // If current state is initial Pseudo State
+    case InitState:        // If current state is initial State
     {
-        if (ThisEvent.EventType == ES_INIT){
-            puts("Locomotion Service:");
-            printf("\rES_INIT received in Service %d\r\n", MyPriority);
-            // go to running state
-            CurrentState = Waiting;
+        // determine starting state based on racer position
+        if (ThisEvent.EventType == ES_RECEIVE){
+            switch (ThisEvent.EventParam){
+                case RACER_A:
+                {
+                    printf("\r [InitState]RACER_A \r\n");
+                    FollowCircle();
+                    CurrentState = FollowPathState;
+                }
+                break;
+                
+                case RACER_B:
+                {
+                    printf("\r [InitState]RACER_B \r\n");
+                    Stop();
+                    CurrentState = StoppedState;
+                }
+                break;
+                
+                case RACER_C:
+                {
+                    printf("\r [InitState]RACER_C \r\n");
+                    Stop();
+                    // set new system timer for waiting to inch forward
+                    ES_Timer_InitTimer(START_WAIT_TIMER, WAIT_TIME);
+                    // ES_Timer_StartTimer(START_WAIT_TIMER);  
+                    CurrentState = StoppedState;
+                }
+                break;
+                
+                default:
+                {}
+                break;
+            }
+        }
+    }
+    break;
+
+    case WaitingState:       
+    {
+        // stop
+        printf("\r WaitingState\r\n");
+    }
+    break;
+    
+    case FollowPathState:       
+    {
+        if (ThisEvent.EventType == ES_RECEIVE){
+            if (ThisEvent.EventParam == BOTH_DETECTED){
+                printf("\r [FollowPathState]BOTH_DETECTED \r\n");
+                FollowCircle();
+                CurrentState = KeepPathState;
+            }
+            else if (ThisEvent.EventParam == GAME_END){
+                printf("\r [FollowState]GAME_END \r\n");
+                Stop();
+                CurrentState = WaitingState;
+            }
+        }
+    }
+    break;
+    
+    case KeepPathState:       
+    {
+        if (ThisEvent.EventType == ES_RECEIVE){
+            switch (ThisEvent.EventParam){
+                case TRANSMIT_BATON:{
+                    printf("\r [KeepPathState]TRANSMIT_BATON \r\n");
+                    Stop();
+                    CurrentState = StoppedState;
+                }
+                break;
+
+                case LEFT_DETECTED:{
+                    printf("\r [KeepPathState]LEFT_DETECTED \r\n");
+                    TurnLeft();
+                    CurrentState = TurnLeftState;
+                }
+                break;
+
+                case RIGHT_DETECTED:{
+                    printf("\r [KeepPathState]RIGHT_DETECTED \r\n");
+                    TurnRight();
+                    CurrentState = TurnRightState;
+                }
+                break;
+
+                case GAME_END:{
+                    printf("\r [KeepPathState]GAME_END \r\n");
+                    Stop();
+                    CurrentState = WaitingState;
+                }
+                break;
+
+                default:
+                {}
+                break;
+            }
         }
         
     }
     break;
+    
+    case TurnLeftState:       
+    {
+        if (ThisEvent.EventType == ES_RECEIVE){
+            if (ThisEvent.EventParam == BOTH_DETECTED){
+                printf("\r [TurnLeftState]BOTH_DETECTED \r\n");
+                DriveForward();
+                CurrentState = StraightState;
+            }
+            else if (ThisEvent.EventParam == GAME_END){
+                printf("\r [TurnLeftState]GAME_END \r\n");
+                Stop();
+                CurrentState = WaitingState;
+            }
+        }
+    }
+    break;
+    
+    case TurnRightState:       
+    {
+        if (ThisEvent.EventType == ES_RECEIVE){
+            if (ThisEvent.EventParam == BOTH_DETECTED){
+                printf("\r [TurnRightState]BOTH_DETECTED \r\n");
+                DriveForward();
+                CurrentState = StraightState;
+            }
+            else if (ThisEvent.EventParam == GAME_END){
+                printf("\r [TurnRightState]GAME_END \r\n");
+                Stop();
+                CurrentState = WaitingState;
+            }
+        }
+    }
+    break;
+    
+    case StraightState:       
+    {
+        if (ThisEvent.EventType == ES_RECEIVE){
+            switch (ThisEvent.EventParam){
+                case TRANSMIT_BATON:{
+                    printf("\r [StraightState]TRANSMIT_BATON \r\n");
+                    Stop();
+                    CurrentState = StoppedState;
+                }
+                break;
 
-    case Waiting:       
-    {
-      if ((ThisEvent.EventType == ES_RECEIVE) && (ThisEvent.EventParam == 20))
-      {
-        ES_Timer_InitTimer(OUR_TIMER, 4000);
-        ES_Timer_StartTimer(OUR_TIMER);
-        
-        ES_Timer_InitTimer(STOP_TIMER, 9000);
-        ES_Timer_StartTimer(STOP_TIMER);
-        DriveForward();
-        CurrentState = DrivingForward;
-      }
+                case LEFT_DETECTED:{
+                    printf("\r [StraightState]LEFT_DETECTED \r\n");
+                    TurnLeft();
+                    CurrentState = TurnLeftState;
+                }
+                break;
 
+                case RIGHT_DETECTED:{
+                    printf("\r [StraightState]RIGHT_DETECTED \r\n");
+                    TurnRight();
+                    CurrentState = TurnRightState;
+                }
+                break;
+
+                case GAME_END:{
+                    printf("\r [StraightState]GAME_END \r\n");
+                    Stop();
+                    CurrentState = WaitingState;
+                }
+                break;
+
+                default:
+                {}
+                break;
+            }
+        }
     }
     break;
     
-    case DrivingForward:       
+    case StoppedState:
     {
-      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == OUR_TIMER))
-      {
-        ES_Timer_InitTimer(OUR_TIMER, 1000);
-        ES_Timer_StartTimer(OUR_TIMER);
-        TurnLeft();
-        CurrentState = Turning;
-      }
-      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == STOP_TIMER))
-      {
-          Stop();
-      }
+        if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == START_WAIT_TIMER)){
+            printf("\r [StoppedState]ES_TIMEOUT from START_WAIT_TIMER \r\n");
+            // set new system timer for inching forward
+            ES_Timer_InitTimer(INCH_TIMER, INCH_TIME);
+            ES_Timer_StartTimer(INCH_TIMER);
+                    
+            DriveForward();
+            CurrentState = InchingState;
+        }
+        else if (ThisEvent.EventType == ES_RECEIVE){
+            switch (ThisEvent.EventParam)
+            {
+                case FREQ_CHANGE:
+                {
+                    printf("\r [StoppedState]FREQ_CHANGE \r\n");
+                    // set new system timer for inching forward
+                    ES_Timer_InitTimer(INCH_TIMER, INCH_TIME);
+                    ES_Timer_StartTimer(INCH_TIMER);
+
+                    DriveForward();
+
+                    CurrentState = InchingState;
+                }
+                break;
+                
+                case RECEIVE_BATON:
+                {
+                    printf("\r [StoppedState]RECEIVE_BATON \r\n");
+                    FollowCircle();
+                    CurrentState = FollowPathState;
+                }
+                break;
+                
+                case GAME_END:
+                {
+                    printf("\r [StoppedState]GAME_END \r\n");
+                    Stop();
+                    CurrentState = WaitingState;
+                }
+                break;
+                
+                default:
+                {}
+                break;
+            }
+        }
     }
     break;
     
-    case Turning:       
+    case InchingState:
     {
-      if ((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == OUR_TIMER))
-      {
-        DriveForward();
-        CurrentState = DrivingForward;
-      }
+        if((ThisEvent.EventType == ES_TIMEOUT) && (ThisEvent.EventParam == INCH_TIMER)){
+            printf("\r [InchingState]ES_TIMEOUT from INCH_TIMER \r\n");
+            Stop();
+            CurrentState = StoppedState;
+        }
+        else if ((ThisEvent.EventType == ES_RECEIVE) && (ThisEvent.EventParam == GAME_END)){
+            printf("\r [InchingState]GAME_END \r\n");
+            Stop();
+            CurrentState = WaitingState;
+        }
     }
     break;
-    
-    
     
     default:
     {}

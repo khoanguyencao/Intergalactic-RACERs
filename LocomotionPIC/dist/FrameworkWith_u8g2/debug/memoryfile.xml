@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<project>                                  
+  <executable name="dist/FrameworkWith_u8g2/debug/LocomotionPIC.debug.elf">                 
+    <memory name="program">                 
+      <units>bytes</units>                 
+      <length>263312</length>                 
+      <used>25828</used>                     
+      <free>237484</free>                     
+    </memory>                              
+    <memory name="data">              
+      <units>bytes</units>                 
+      <length>66048</length>                 
+      <used>1720</used>                     
+      <free>64328</free>                     
+    </memory>                              
+  </executable>                            
+</project>                                 

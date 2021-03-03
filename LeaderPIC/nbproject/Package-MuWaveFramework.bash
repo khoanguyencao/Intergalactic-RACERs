@@ -10,9 +10,9 @@ CND_CONF=MuWaveFramework
 CND_DISTDIR=dist
 TMPDIR=build/${CND_CONF}/${IMAGE_TYPE}/tmp-packaging
 TMPDIRNAME=tmp-packaging
-OUTPUT_PATH=dist/${CND_CONF}/${IMAGE_TYPE}/LeaderCode.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
-OUTPUT_BASENAME=LeaderCode.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
-PACKAGE_TOP_DIR=leadercode/
+OUTPUT_PATH=dist/${CND_CONF}/${IMAGE_TYPE}/LeaderPIC.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
+OUTPUT_BASENAME=LeaderPIC.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
+PACKAGE_TOP_DIR=leaderpic/
 
 # Functions
 function checkReturnCode
@@ -57,15 +57,15 @@ mkdir -p ${TMPDIR}
 
 # Copy files and create directories and links
 cd "${TOP}"
-makeDirectory ${TMPDIR}/leadercode/bin
+makeDirectory ${TMPDIR}/leaderpic/bin
 copyFileToTmpDir "${OUTPUT_PATH}" "${TMPDIR}/${PACKAGE_TOP_DIR}bin/${OUTPUT_BASENAME}" 0755
 
 
 # Generate tar file
 cd "${TOP}"
-rm -f ${CND_DISTDIR}/${CND_CONF}/package/leadercode.tar
+rm -f ${CND_DISTDIR}/${CND_CONF}/package/leaderpic.tar
 cd ${TMPDIR}
-tar -vcf ../../../../${CND_DISTDIR}/${CND_CONF}/package/leadercode.tar *
+tar -vcf ../../../../${CND_DISTDIR}/${CND_CONF}/package/leaderpic.tar *
 checkReturnCode
 
 # Cleanup
