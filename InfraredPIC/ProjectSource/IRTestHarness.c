@@ -156,76 +156,131 @@ ES_Event_t RunIRTestHarness(ES_Event_t ThisEvent)
     break;
     case ES_NEW_KEY:   // announce
     {
-        // emit frequency 1
-      if ('q' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_FREQ1;
-          PostIR(ThisEvent);
+//        // emit frequency 1
+//      if ('q' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_FREQ1;
+//          PostIR(ThisEvent);
+//      }
+//      // emit frequency 2
+//      if ('w' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_FREQ2;
+//          PostIR(ThisEvent);
+//      }
+//      // emit frequency 3
+//      if ('e' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_FREQ3;
+//          PostIR(ThisEvent);
+//      }
+//      
+//      // emit frequency 4
+//      if ('r' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_FREQ4;
+//          PostIR(ThisEvent);
+//      }
+//      
+//      // blink 1 time
+//      if ('1' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_BLINK;
+//          ThisEvent.EventParam = 1;
+//          PostIR(ThisEvent);
+//      }
+//      // blink 2 times
+//      if ('2' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_BLINK;
+//          ThisEvent.EventParam = 2;
+//          PostIR(ThisEvent);
+//      }
+//      
+//      // blink 3 times
+//      if ('3' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_BLINK;
+//          ThisEvent.EventParam = 3;
+//          PostIR(ThisEvent);
+//      }
+//      // blink 5 times
+//      if ('5' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_BLINK;
+//          ThisEvent.EventParam = 5;
+//          PostIR(ThisEvent);
+//      }
+//      // blink 9 times
+//      if ('9' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_BLINK;
+//          ThisEvent.EventParam = 9;
+//          PostIR(ThisEvent);
+//      }
+//      // blink 20 times
+//      if ('0' == ThisEvent.EventParam)
+//      {
+//          ThisEvent.EventType = ES_BLINK;
+//          ThisEvent.EventParam = 20;
+//          PostIR(ThisEvent);
+//      }
+      // query current state
+        //InitPState, InitPState2, Waiting2RxBaton, Leaving, FollowingPath, Aligning, SendingLaps, Termination
+      if ('y' ==  ThisEvent.EventParam){
+          IRState_t curState = QueryIR();
+          if (curState == InitPState){
+              printf("InitPState\n");
+          }
+          else if (curState == InitPState2){
+              printf("InitPState2\n");
+          }
+          else if (curState == Waiting2RxBaton){
+              printf("Waiting2RxBaton\n");
+          }
+          else if (curState == Leaving){
+              printf("Leaving\n");
+          }
+          else if (curState == FollowingPath){
+              printf("FollowingPath\n");
+          }
+          else if (curState == Aligning){
+              printf("Aligning\n");
+          }
+          else if (curState == SendingLaps){
+              printf("SendingLaps\n");
+          }
+          else if (curState == Termination){
+              printf("Termination\n");
+          }
       }
-      // emit frequency 2
-      if ('w' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_FREQ2;
-          PostIR(ThisEvent);
-      }
-      // emit frequency 3
-      if ('e' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_FREQ3;
+      else if ('r' ==  ThisEvent.EventParam){
+          ThisEvent.EventType = ES_RX_BATON;
+          ThisEvent.EventParam = 11;
           PostIR(ThisEvent);
       }
       
-      // emit frequency 4
-      if ('r' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_FREQ4;
+      else if ('b' ==  ThisEvent.EventParam){
+          ThisEvent.EventType = ES_BOTH_DETECT;
           PostIR(ThisEvent);
       }
-      
-      // blink 1 time
-      if ('1' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_BLINK;
-          ThisEvent.EventParam = 1;
+      else if ('l' ==  ThisEvent.EventParam){
+          ThisEvent.EventType = ES_LEFTDETECT;
           PostIR(ThisEvent);
       }
-      // blink 2 times
-      if ('2' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_BLINK;
-          ThisEvent.EventParam = 2;
+      else if ('t' ==  ThisEvent.EventParam){
+          ThisEvent.EventType = ES_RIGHTDETECT;
           PostIR(ThisEvent);
       }
-      
-      // blink 3 times
-      if ('3' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_BLINK;
-          ThisEvent.EventParam = 3;
+      else if ('f' ==  ThisEvent.EventParam){
+          ThisEvent.EventType = ES_FREQ_CHANGE;
           PostIR(ThisEvent);
       }
-      // blink 5 times
-      if ('5' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_BLINK;
-          ThisEvent.EventParam = 5;
+      else if ('n' ==  ThisEvent.EventParam){
+          ThisEvent.EventType = ES_NO_DETECT;
           PostIR(ThisEvent);
       }
-      // blink 9 times
-      if ('9' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_BLINK;
-          ThisEvent.EventParam = 9;
-          PostIR(ThisEvent);
-      }
-      // blink 20 times
-      if ('0' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_BLINK;
-          ThisEvent.EventParam = 20;
-          PostIR(ThisEvent);
-      }
-      
+       
     }
     break;
     default:
