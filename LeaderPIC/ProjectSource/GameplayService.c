@@ -46,6 +46,7 @@ static void SendLocomotion(uint8_t message);
 static void SendInfrared(uint8_t message);
 static void processMessage(uint16_t message);
 static void ActivateFollowers();
+static void SafetyCheck();
 
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
@@ -159,6 +160,8 @@ ES_Event_t RunGameplayService(ES_Event_t ThisEvent)
           LowerBaton();
         }
         ActivateFollowers();
+        SafetyCheck();
+        printf("Init Complete\n");
       }
     }
     break;
@@ -171,6 +174,7 @@ ES_Event_t RunGameplayService(ES_Event_t ThisEvent)
             {
               case ES_TX_BATON:
               {
+                  printf("Transmitted the Baton\n");
                 LowerBaton();
                 SendInfrared(ThisEvent.EventParam);
                 SendLocomotion(ThisEvent.EventParam);
@@ -210,11 +214,12 @@ ES_Event_t RunGameplayService(ES_Event_t ThisEvent)
             {  
               case ES_RX_BATON:
               {
+                  printf("Baton Received\n");
                 RaiseBaton();
                 SendLocomotion(ThisEvent.EventParam);
                 CurrentState = YesBaton;
                 // Activate Hall Effect Sensors
-                IFS0CLR = _IFS0_IC1IF_MASK;
+                // IFS0CLR = _IFS0_IC1IF_MASK;
                 IEC0SET = _IEC0_IC1IE_MASK;
               }
               break;
@@ -378,7 +383,7 @@ static void InitTimers(){
   IFS0CLR = _IFS0_T2IF_MASK;      // Clear interrupt flag
 
   // Turn on timers
-  T1CONbits.ON = 1;               // Turn on timer 1
+  //T1CONbits.ON = 1;               // Turn on timer 1
   T2CONbits.ON = 1;               // Turn on timer 2
   T3CONbits.ON = 1;               // Turn on timer 3
    
@@ -469,24 +474,30 @@ static void LowerBaton(){
 
 static void SendLocomotion(uint8_t message){
   // First queue is for locomotion (follower 1)
-  enqueue(1, message);
+  if (message != 0){
+      enqueue(1, message);
+  }
 }
 
 static void SendInfrared(uint8_t message){
   // Second queue is for infrared (follower 2)
-  enqueue(2, message);
+  if (message != 0){
+      enqueue(2, message);
+  }
 }
 
 static void processMessage(uint16_t message){
+  printf("Received: %u\n", message);
   if (message == 100){
     // Receive Baton Event
     ES_Event_t ReceiveBatonEvent;
     ReceiveBatonEvent.EventType = ES_RX_BATON;
     PostGameplayService(ReceiveBatonEvent);
-  } else if ((message == 125) || (message == 150) || (message == 175) || (message == 225)){
+  }
+  if ((message == 100) || (message == 125) || (message == 150) || 
+          (message == 175) || (message == 200) || (message == 250)){
     // Locomotion Events
     SendLocomotion(message);
-    printf("Received: %u\n", message);
   } else {
     //printf("SPI Error: %u\n", message);
   }
@@ -506,6 +517,17 @@ static void ActivateFollowers(){
     message = message + 10;
   }
   SendInfrared(message);
+}
+
+static void SafetyCheck(){
+  if(((isRobotA) && (isRobotB)) || 
+          ((isRobotA) && (isRobotC)) ||
+          ((isRobotB) && (isRobotC)) || 
+          ((!isRobotA) && (!isRobotB) && (!isRobotC))){
+    LATBbits.LATB8 = 1;
+    LATBbits.LATB9 = 1;
+    LATBbits.LATB12 = 1;
+  }
 }
 
 /* Interrupts */
@@ -551,7 +573,8 @@ void __ISR(_TIMER_2_VECTOR, IPL7SOFT) SPIUpdateISR(){
   // SPI2 (Infrared)
   // Read the buffer and send the appropriate event to self
   uint8_t receivedMessage = SPI2BUF;
-  if ((receivedMessage != 0) || (receivedMessage != 255)){
+  if ((receivedMessage != 0) && (receivedMessage != 255)){
+      printf("ISR: %u\n", receivedMessage);
     ES_Event_t ReceivedMessageEvent;
     ReceivedMessageEvent.EventParam = receivedMessage;
     ReceivedMessageEvent.EventType = ES_INFRARED_MSG;

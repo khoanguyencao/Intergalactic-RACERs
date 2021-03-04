@@ -48,8 +48,8 @@
 
 // #define PERIOD1 2500
 // #define PERIOD2 5500
-#define TEST
-#define TOLERENCE 100
+//#define TEST
+#define TOLERENCE 10
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -93,7 +93,7 @@ static volatile uint8_t rightdetected = 0;
 static volatile Timer myTimer2;
 static volatile Timer myTimer3;
 
-static volatile uint8_t TxNum = 0; 
+static volatile uint8_t TxNum = 1; 
 static volatile uint8_t postTxNum = 0;
 static volatile uint8_t lastTxNum = 54;
 static volatile uint8_t lastlastTxNum = 99;
@@ -251,6 +251,7 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
         {  
           case ES_RX_BATON:
           {
+            printf("TxNum: %u\n", TxNum);
             StartTransmitRear(PERIOD2);
             StopReceiveRear();
             SendLeader(100);
@@ -352,6 +353,18 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
             }
           }
           break;
+#ifdef TEST
+          case ES_TX_BATON:
+          {
+            // ES_TX_BATON
+            
+              //printf("hi");
+              StopReceiveFront();
+              StartTransmitFront(PERIOD1);
+              CurrentState = SendingLaps;
+          }
+          break;
+#endif
 
           case ES_BOTH_DETECT:
           {
@@ -370,14 +383,14 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
           case ES_RIGHTDETECT:
           {
             SendLeader(200);
-            printf("no detect\n");
+            printf("right\n");
           }
           break;
 
           case ES_NO_DETECT:
           {
             SendLeader(250);
-            printf("right");
+            printf("no detect\n");
           }
           break;
 
@@ -558,7 +571,7 @@ void _initIC_Rear(void){
     lastlastTxNum = 99;
     currentTxNum = 0;
     lastTxNum = 54;
-    TxNum = 0;
+    TxNum = 1;
     
     /* Turn on input capture */
     IC4CONbits.ON = 1;
@@ -682,7 +695,7 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR,IPL7SOFT)_ICRearISR(void){
         else if ((periodRear >= (5*PERIOD1)) && (periodRear <= (6*PERIOD1))){ //one cycle of blinking complete. should be 6*period.
             currentTxNum++;  //count last rise
             //referenceTxNum = currentTxNum;
-            //printf("%u ", referenceTxNum);
+            //printf("%u ", TxNum);
             if ((postTxNum == 0) && (lastTxNum == currentTxNum) && (lastlastTxNum == lastTxNum)) {   //only post one time 
                 //printf("%u\n", referenceTxNum);
                 /* PostEvent ES_RX_BATON with param currentTxNum */
@@ -748,14 +761,16 @@ void __ISR (_INPUT_CAPTURE_2_VECTOR, IPL7SOFT ) IC_Front_Left_ISR ( void ){
 void __ISR (_INPUT_CAPTURE_1_VECTOR, IPL7SOFT ) IC_Front_Right_ISR ( void ){
 
     static volatile ES_Event_t ThisEvent;
-
+    //printf("hi");
     myTimer2.RealTime.buffRead = IC1BUF ;   //Read the Variable
 
     if (firstRiseFrontRight != 0){
         /* Calculate Period */
         periodFrontRight = myTimer2.RealTime.buffRead - lastRiseFrontRight;
+        //printf("%u\n", periodFrontRight);
         if ((periodFrontRight <= (PERIOD1 + TOLERENCE)) && (periodFrontRight >= (PERIOD1 - TOLERENCE))){
             rightdetected = 1;
+            //printf("rd\n");
         }
         else if ((periodFrontRight <= (PERIOD2 + TOLERENCE)) && (periodFrontRight >= (PERIOD2 - TOLERENCE))){
            rightdetected = 2;
@@ -790,15 +805,20 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
     OldEvent.EventType = ES_NO_DETECT;
     static volatile uint8_t var;
     static volatile uint8_t var1;
-
+    //printf("l: %u", leftdetected);
+    //printf("  r: %u\n", rightdetected);
     if ((leftdetected == 1) && (rightdetected == 1)){
- 
+        //printf("hi");
         ThatEvent.EventType = ES_BOTH_DETECT;
         ThatEvent.EventParam = 1;
         var = 4;
         
     }
-    
+    else if ((leftdetected == 2) && (rightdetected == 2)){
+        ThatEvent.EventType = ES_FREQ_CHANGE;
+        var = 5;
+        //printf("%u\n", var);
+    }
     else if ((leftdetected == 1) && (rightdetected == 0)){
         ThatEvent.EventType = ES_LEFTDETECT;
         ThatEvent.EventParam = 1;
@@ -816,13 +836,10 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
         var = 1;
     }
     
-    else if ((leftdetected == 2) && (rightdetected == 2)) {
-        ThatEvent.EventType = ES_FREQ_CHANGE;
-        var = 0;
-    }
     
     if (var1 != var){
         PostIR(ThatEvent);
+        //printf("%u\n", var);
     }
      
      leftdetected =0;
@@ -893,7 +910,7 @@ void Init_RearPWM(uint16_t period){
 void __ISR(_OUTPUT_COMPARE_1_VECTOR, IPL7SOFT) OC1_FrontPWMISR (void){
     /* Increment Edge count */
     edgeNum ++;
-
+    //printf("%u\n", TxNum);
     /* If still blinking # of transfers, load OC1R normally */
     if (edgeNum < (TxNum*2)){
         loadNum += (PERIOD1/2);

@@ -14,27 +14,13 @@
 #include "ES_Events.h"
 #include "ES_Configure.h"
 
-// leader to loco parameters
-#define RACER_A 20
-#define RACER_B 40
-#define RACER_C 60
-#define GAME_END 66
-#define TRANSMIT_BATON 12
-// IR to loco parameters
-#define LEFT_DETECTED 125
-#define RIGHT_DETECTED 200
-#define BOTH_DETECTED 150
-#define RECEIVE_BATON 100
-#define FREQ_CHANGE 175
-#define NO_DETECT 250
-
 bool InitLocomotion(uint8_t Priority);
 bool PostLocomotion(ES_Event_t ThisEvent);
 ES_Event_t RunLocomotion(ES_Event_t ThisEvent);
 
 typedef enum
 {
-  InitState=0, WaitingState, FollowPathState, KeepPathState, TurnLeftState, TurnRightState, StraightState, StoppedState, InchingState
+  InitPState=0, Waiting, DrivingForward, Turning
 }LocoState_t;
 
 // set up union for combining overflow with IC time

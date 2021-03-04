@@ -150,99 +150,50 @@ ES_Event_t RunLocomotionTestHarness(ES_Event_t ThisEvent)
     break;
     case ES_NEW_KEY:   // announce
     {
-        // init as racer a
-        if ('a' == ThisEvent.EventParam)
+        if ('p' == ThisEvent.EventParam)
       {
-            printf("racer_a\r\n");
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = RACER_A;
+          ThisEvent.EventType = ES_PRINT;
           PostLocomotion(ThisEvent);
       }
-        // init as racer b
-        if ('b' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = RACER_B;
-          PostLocomotion(ThisEvent);
-      }
-        // init as racer c
-      if ('c' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = RACER_C;
-          PostLocomotion(ThisEvent);
-      }
-      // both detected
-      if ('2' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = BOTH_DETECTED;
-          PostLocomotion(ThisEvent);
-      }
-      // detect only on the left
-      if ('l' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = LEFT_DETECTED;
-          PostLocomotion(ThisEvent);
-      }
-      
-      // detect only on the right
-      if ('r' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = RIGHT_DETECTED;
-          PostLocomotion(ThisEvent);
-      }
-      
-      // transmit baton detect
-      if ('t' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = TRANSMIT_BATON;
-          PostLocomotion(ThisEvent);
-      }
-      
-      // receive baton detected
-      if ('y' == ThisEvent.EventParam)
-      {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = RECEIVE_BATON;
-          PostLocomotion(ThisEvent);
-      }
-        
-        // start waiting timer timeout
+        // drive straight
       if ('w' == ThisEvent.EventParam)
       {
-          ThisEvent.EventType = ES_TIMEOUT;
-          ThisEvent.EventParam = START_WAIT_TIMER;
+          ThisEvent.EventType = ES_GOFORWARD;
           PostLocomotion(ThisEvent);
       }
-        
-        // inching timer timeout
-      if ('i' == ThisEvent.EventParam)
+      // drive backwards
+      if ('s' == ThisEvent.EventParam)
       {
-          ThisEvent.EventType = ES_TIMEOUT;
-          ThisEvent.EventParam = INCH_TIMER;
+          ThisEvent.EventType = ES_GOBACKWARD;
           PostLocomotion(ThisEvent);
       }
-        // receive baton detected
-      if ('f' == ThisEvent.EventParam)
+      // turn left
+      if ('a' == ThisEvent.EventParam)
       {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = FREQ_CHANGE;
+          ThisEvent.EventType = ES_TURNLEFT;
           PostLocomotion(ThisEvent);
       }
-        
-        // end of game received
-      if ('e' == ThisEvent.EventParam)
+      
+      // turn right
+      if ('d' == ThisEvent.EventParam)
       {
-          ThisEvent.EventType = ES_RECEIVE;
-          ThisEvent.EventParam = GAME_END;
+          ThisEvent.EventType = ES_TURNRIGHT;
           PostLocomotion(ThisEvent);
       }
-        
-        
+      
+      // stop
+      if ('0' == ThisEvent.EventParam)
+      {
+          ThisEvent.EventType = ES_STOP;
+          PostLocomotion(ThisEvent);
+      }
+      
+      // follow the circle
+      if ('c' == ThisEvent.EventParam)
+      {
+          ThisEvent.EventType = ES_FOLLOWCIRCLE;
+          PostLocomotion(ThisEvent);
+      }
       
     }
     break;

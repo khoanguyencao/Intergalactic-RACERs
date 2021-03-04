@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?> 
 <project>                                  
-  <executable name="dist/MuWaveFramework/production/LeaderPIC.production.elf">                 
+  <executable name="dist/MuWaveFramework/production/LeaderCode.production.elf">                 
     <memory name="program">                 
       <units>bytes</units>                 
       <length>263312</length>                 
-      <used>22564</used>                     
-      <free>240748</free>                     
+      <used>22968</used>                     
+      <free>240344</free>                     
     </memory>                              
     <memory name="data">              
       <units>bytes</units>                 
