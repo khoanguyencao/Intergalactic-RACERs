@@ -156,6 +156,7 @@
       </compileType>
       <makeCustomizationType>
         <makeCustomizationPreStepEnabled>false</makeCustomizationPreStepEnabled>
+        <makeUseCleanTarget>false</makeUseCleanTarget>
         <makeCustomizationPreStep></makeCustomizationPreStep>
         <makeCustomizationPostStepEnabled>false</makeCustomizationPostStepEnabled>
         <makeCustomizationPostStep></makeCustomizationPostStep>
@@ -659,6 +660,7 @@
       </compileType>
       <makeCustomizationType>
         <makeCustomizationPreStepEnabled>false</makeCustomizationPreStepEnabled>
+        <makeUseCleanTarget>false</makeUseCleanTarget>
         <makeCustomizationPreStep></makeCustomizationPreStep>
         <makeCustomizationPostStepEnabled>false</makeCustomizationPostStepEnabled>
         <makeCustomizationPostStep></makeCustomizationPostStep>
@@ -801,11 +803,7 @@
         <property key="wpo-lto" value="false"/>
         <appendMe value="-std=gnu99"/>
       </C32Global>
-<<<<<<< Updated upstream
       <item path="ProjectSource/IRTestHarness.c" ex="false" overriding="false">
-=======
-      <item path="ProjectSource/IRTestHarness.c" ex="true" overriding="false">
->>>>>>> Stashed changes
         <C32>
         </C32>
         <C32-AR>
