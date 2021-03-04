@@ -280,6 +280,10 @@ ES_Event_t RunIRTestHarness(ES_Event_t ThisEvent)
           ThisEvent.EventType = ES_NO_DETECT;
           PostIR(ThisEvent);
       }
+      else if ('v' ==  ThisEvent.EventParam){
+          ThisEvent.EventType = ES_TX_BATON;
+          PostIR(ThisEvent);
+      } 
        
     }
     break;
