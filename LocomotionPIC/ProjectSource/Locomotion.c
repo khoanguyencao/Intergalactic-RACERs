@@ -30,10 +30,10 @@
 #define FORWARD 2
 #define BACKWARD 3
 
-#define FWD_SPEED 90// speed for going straight forward(in duty cycles)
+#define FWD_SPEED 100// speed for going straight forward(in duty cycles)
 #define BKWD_SPEED 50// speed for going straight backward
-#define TURN_SPEED_1 70// speed for turning the racer on one wheel 
-#define TURN_SPEED_2 70// speed for turning racer on other wheel 
+#define TURN_SPEED_1 100// speed for turning the racer on one wheel 
+#define TURN_SPEED_2 100// speed for turning racer on other wheel 
 #define CIRC_L_SPEED 82// speed for left wheel when following the path
 #define CIRC_R_SPEED 96// speed for right wheel when following the path
 #define STOP_SPEED 5// speed for stopping the racer
@@ -312,6 +312,11 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
                 DriveForward();
                 CurrentState = StraightState;
             }
+            else if (ThisEvent.EventParam == TRANSMIT_BATON){
+                printf("\r [StraightState]TRANSMIT_BATON \r\n");
+                Stop();
+                CurrentState = StoppedState;
+            }
             else if (ThisEvent.EventParam == GAME_END){
                 printf("\r [TurnLeftState]GAME_END \r\n");
                 Stop();
@@ -328,6 +333,11 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
                 printf("\r [TurnRightState]BOTH_DETECTED \r\n");
                 DriveForward();
                 CurrentState = StraightState;
+            }
+            else if (ThisEvent.EventParam == TRANSMIT_BATON){
+                printf("\r [StraightState]TRANSMIT_BATON \r\n");
+                Stop();
+                CurrentState = StoppedState;
             }
             else if (ThisEvent.EventParam == GAME_END){
                 printf("\r [TurnRightState]GAME_END \r\n");
