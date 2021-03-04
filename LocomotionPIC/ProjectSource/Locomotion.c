@@ -249,15 +249,34 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
     case FollowPathState:       
     {
         if (ThisEvent.EventType == ES_RECEIVE){
-            if (ThisEvent.EventParam == BOTH_DETECTED){
-                printf("\r [FollowPathState]BOTH_DETECTED \r\n");
-                FollowCircle();
-                CurrentState = KeepPathState;
-            }
-            else if (ThisEvent.EventParam == GAME_END){
-                printf("\r [FollowState]GAME_END \r\n");
-                Stop();
-                CurrentState = WaitingState;
+            switch (ThisEvent.EventParam){
+                case BOTH_DETECTED:
+                {
+                    printf("\r [FollowPathState]BOTH_DETECTED \r\n");
+                    FollowCircle();
+                    CurrentState = KeepPathState;
+                }
+                break;
+                
+                case GAME_END:
+                {
+                    printf("\r [FollowState]GAME_END \r\n");
+                    Stop();
+                    CurrentState = WaitingState;
+                }
+                break;
+                
+                case TRANSMIT_BATON:
+                {
+                    printf("\r [FollowCircleState]TRANSMIT_BATON \r\n");
+                    Stop();
+                    CurrentState = StoppedState;
+                }
+                break;
+                
+                default:
+                {}
+                break;
             }
         }
     }
@@ -307,20 +326,34 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
     case TurnLeftState:       
     {
         if (ThisEvent.EventType == ES_RECEIVE){
-            if (ThisEvent.EventParam == BOTH_DETECTED){
-                printf("\r [TurnLeftState]BOTH_DETECTED \r\n");
-                DriveForward();
-                CurrentState = StraightState;
-            }
-            else if (ThisEvent.EventParam == TRANSMIT_BATON){
-                printf("\r [StraightState]TRANSMIT_BATON \r\n");
-                Stop();
-                CurrentState = StoppedState;
-            }
-            else if (ThisEvent.EventParam == GAME_END){
-                printf("\r [TurnLeftState]GAME_END \r\n");
-                Stop();
-                CurrentState = WaitingState;
+            switch (ThisEvent.EventParam){
+                case BOTH_DETECTED:
+                {
+                    printf("\r [TurnLeftState]BOTH_DETECTED \r\n");
+                    DriveForward();
+                    CurrentState = StraightState;
+                }
+                break;
+                
+                case TRANSMIT_BATON:
+                {
+                    printf("\r [StraightState]TRANSMIT_BATON \r\n");
+                    Stop();
+                    CurrentState = StoppedState;
+                }
+                break;
+                
+                case GAME_END:
+                {
+                    printf("\r [TurnLeftState]GAME_END \r\n");
+                    Stop();
+                    CurrentState = WaitingState;
+                }
+                break;
+                
+                default:
+                {}
+                break;
             }
         }
     }
@@ -329,20 +362,34 @@ ES_Event_t RunLocomotion(ES_Event_t ThisEvent)
     case TurnRightState:       
     {
         if (ThisEvent.EventType == ES_RECEIVE){
-            if (ThisEvent.EventParam == BOTH_DETECTED){
-                printf("\r [TurnRightState]BOTH_DETECTED \r\n");
-                DriveForward();
-                CurrentState = StraightState;
-            }
-            else if (ThisEvent.EventParam == TRANSMIT_BATON){
-                printf("\r [StraightState]TRANSMIT_BATON \r\n");
-                Stop();
-                CurrentState = StoppedState;
-            }
-            else if (ThisEvent.EventParam == GAME_END){
-                printf("\r [TurnRightState]GAME_END \r\n");
-                Stop();
-                CurrentState = WaitingState;
+            switch(ThisEvent.EventParam){
+                case BOTH_DETECTED:
+                {
+                    printf("\r [TurnRightState]BOTH_DETECTED \r\n");
+                    DriveForward();
+                    CurrentState = StraightState;
+                }
+                break;
+                
+                case TRANSMIT_BATON:
+                {
+                    printf("\r [StraightState]TRANSMIT_BATON \r\n");
+                    Stop();
+                    CurrentState = StoppedState;
+                }
+                break;
+                
+                case GAME_END:
+                {
+                    printf("\r [TurnRightState]GAME_END \r\n");
+                    Stop();
+                    CurrentState = WaitingState;
+                }
+                break;
+                
+                default:
+                {}
+                break;
             }
         }
     }
