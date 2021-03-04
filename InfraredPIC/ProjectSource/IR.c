@@ -64,6 +64,7 @@ void _initTimer3();
 void _initTimer2();
 void initPostingTimer(void);
 static void InitSPI();
+static void SPIOff();
 static void SendLeader(uint8_t message);
 static void RobotState(uint16_t message);
 // Wrappers
@@ -358,13 +359,8 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
           {
             // ES_TX_BATON
             
-<<<<<<< Updated upstream
-              //printf("hi");
-              StopReceiveFront();
-=======
               printf("TX_BATON");
               //StopReceiveFront();
->>>>>>> Stashed changes
               StartTransmitFront(PERIOD1);
               CurrentState = SendingLaps;
           }
@@ -411,11 +407,11 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
         {  
           case ES_FREQ_CHANGE:
           {
+            SendLeader(175);
             StopReceiveFront();
             StopTransmitFront();
             StartTransmitRear(PERIOD1);
             StartReceiveRear();
-            SendLeader(175);
             printf("freq change\n");
             CurrentState = Waiting2RxBaton;
           }
@@ -816,15 +812,9 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
         var = 4;
         
     }
-<<<<<<< Updated upstream
-    else if ((leftdetected == 2) && (rightdetected == 2)) {
-        ThatEvent.EventType = ES_FREQ_CHANGE;
-        var = 0;
-=======
     else if ((leftdetected == 2) || (rightdetected == 2)) {
         ThatEvent.EventType = ES_FREQ_CHANGE;
         var = 5;
->>>>>>> Stashed changes
     }
     else if ((leftdetected == 1) && (rightdetected == 0)){
         ThatEvent.EventType = ES_LEFTDETECT;
@@ -940,7 +930,7 @@ void __ISR(_OUTPUT_COMPARE_1_VECTOR, IPL7SOFT) OC1_FrontPWMISR (void){
 /* Init Functions */
 // SPI (Infrared): MOSI (RB5), MISO (RB8), CLK-IN (RB14), SS1 (RB4)
 static void InitSPI(){
-  ANSELBbits.ANSB14 = 0;          // Disable analog inputs on RB14
+  ANSELB = 0;          // Disable analog inputs on RB14
   TRISBbits.TRISB5 = 1;           // MOSI as input
   TRISBbits.TRISB14 = 1;          // CLK as input
   TRISBbits.TRISB4 = 1;           // SS1 as input
@@ -968,9 +958,13 @@ static void InitSPI(){
   SPI1CONbits.MCLKSEL = 0;        // Use PBCLK
   SPI1CONbits.SRXISEL = 0b01;     // Interrupts when Rx buffer is not empty
   IEC1SET = _IEC1_SPI1RXIE_MASK;  // Local interrupt enable for SPI Rx
-  __builtin_enable_interrupts;    // Global interrupt enable 
+  //__builtin_enable_interrupts;    // Global interrupt enable 
   INTCONbits.MVEC = 1;            // Enable multi-vector mode 
   SPI1CONbits.ON = 1;             // Turn on SPI1
+}
+
+static void SPIOff(){
+    SPI1CONbits.ON = 0;
 }
 
 /* Helper Functions */
@@ -996,7 +990,6 @@ void __ISR(_SPI_1_VECTOR, IPL7SOFT) _SPI1ISR(){
     // Send the next message in the queue if present 
     if(!isQueueEmpty(1)){
       uint8_t message = dequeue(1);
-      //printf("%u ", message);
       if((message != 0) && (message != 255)){
           SPI1BUF = message;
       }

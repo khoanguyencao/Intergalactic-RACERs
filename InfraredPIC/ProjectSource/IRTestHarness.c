@@ -36,6 +36,7 @@
 #include "ES_ShortTimer.h"
 #include "ES_Port.h"
 #include "ES_Events.h"
+#include "Queue.h" 
 
 #include <stdio.h>
 #include <string.h>
@@ -284,6 +285,9 @@ ES_Event_t RunIRTestHarness(ES_Event_t ThisEvent)
           ThisEvent.EventType = ES_TX_BATON;
           PostIR(ThisEvent);
       } 
+      else if ('z'== ThisEvent.EventParam){
+          enqueue(1,86);
+      }
        
     }
     break;
