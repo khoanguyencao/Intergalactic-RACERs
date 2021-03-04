@@ -342,7 +342,7 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
             // ES_TX_BATON
             if (ThisEvent.EventParam == 12)
             {
-              StopReceiveFront();
+              //StopReceiveFront();
               StartTransmitFront(PERIOD1);
               CurrentState = SendingLaps;
             }
@@ -358,8 +358,13 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
           {
             // ES_TX_BATON
             
+<<<<<<< Updated upstream
               //printf("hi");
               StopReceiveFront();
+=======
+              printf("TX_BATON");
+              //StopReceiveFront();
+>>>>>>> Stashed changes
               StartTransmitFront(PERIOD1);
               CurrentState = SendingLaps;
           }
@@ -420,6 +425,7 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
           {
             if (ThisEvent.EventParam == 66)
             {
+              
               CurrentState = Termination;
             }
           }
@@ -800,8 +806,8 @@ void initPostingTimer(void){
 // triggers every 0.1s and posts ES_DETECT 1,2,3 or ES_FREQ_2 events
 void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
     OldEvent.EventType = ES_NO_DETECT;
-    static volatile uint8_t var;
-    static volatile uint8_t var1;
+    static volatile uint8_t var = 0;
+    static volatile uint8_t var1 = 0;
 
     if ((leftdetected == 1) && (rightdetected == 1)){
  
@@ -810,9 +816,15 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
         var = 4;
         
     }
+<<<<<<< Updated upstream
     else if ((leftdetected == 2) && (rightdetected == 2)) {
         ThatEvent.EventType = ES_FREQ_CHANGE;
         var = 0;
+=======
+    else if ((leftdetected == 2) || (rightdetected == 2)) {
+        ThatEvent.EventType = ES_FREQ_CHANGE;
+        var = 5;
+>>>>>>> Stashed changes
     }
     else if ((leftdetected == 1) && (rightdetected == 0)){
         ThatEvent.EventType = ES_LEFTDETECT;
