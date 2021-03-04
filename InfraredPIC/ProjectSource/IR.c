@@ -49,7 +49,7 @@
 // #define PERIOD1 2500
 // #define PERIOD2 5500
 #define TEST
-#define TOLERENCE 20
+#define TOLERENCE 10
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -93,7 +93,7 @@ static volatile uint8_t rightdetected = 0;
 static volatile Timer myTimer2;
 static volatile Timer myTimer3;
 
-static volatile uint8_t TxNum = 0; 
+static volatile uint8_t TxNum = 1; 
 static volatile uint8_t postTxNum = 0;
 static volatile uint8_t lastTxNum = 54;
 static volatile uint8_t lastlastTxNum = 99;
@@ -235,8 +235,10 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
         if (isRobotA){
           StartReceiveFront();
           CurrentState = FollowingPath;
-        } else {
+        } 
+        else {
           StartTransmitRear(PERIOD1);
+          StartReceiveRear();
           CurrentState = Waiting2RxBaton;
         }
       }
@@ -249,10 +251,11 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
         {  
           case ES_RX_BATON:
           {
+            printf("TxNum: %u\n", TxNum);
             StartTransmitRear(PERIOD2);
             StopReceiveRear();
             SendLeader(100);
-            ES_Timer_InitTimer(0, 500);
+            ES_Timer_InitTimer(0, 1000); //todo
             CurrentState = Leaving;
           }
           break;
@@ -308,6 +311,7 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
           case ES_BOTH_DETECT:
           {
             SendLeader(150);
+            printf("BOTH DETECT\n");
             CurrentState = Aligning;
           }
           break;
@@ -330,6 +334,7 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
 
     case Aligning:        
     {
+      //printDebugQueue(1);
       switch (ThisEvent.EventType)
         {  
           case ES_RECEIVE:
@@ -348,28 +353,43 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
             }
           }
           break;
-
+#ifdef TEST
+          case ES_TX_BATON:
+          {
+            // ES_TX_BATON
+            
+              //printf("hi");
+              StopReceiveFront();
+              StartTransmitFront(PERIOD1);
+              CurrentState = SendingLaps;
+          }
+          break;
+#endif
           case ES_BOTH_DETECT:
           {
             SendLeader(150);
+            printf("both\n");
           }
           break;
 
           case ES_LEFTDETECT:
           {
             SendLeader(125);
+            printf("left\n");
           }
           break;
 
           case ES_RIGHTDETECT:
           {
-            SendLeader(225);
+            SendLeader(200);
+            printf("right\n");
           }
           break;
 
           case ES_NO_DETECT:
           {
             SendLeader(250);
+            printf("no detect\n");
           }
           break;
 
@@ -389,7 +409,9 @@ ES_Event_t RunIR(ES_Event_t ThisEvent)
             StopReceiveFront();
             StopTransmitFront();
             StartTransmitRear(PERIOD1);
+            StartReceiveRear();
             SendLeader(175);
+            printf("freq change\n");
             CurrentState = Waiting2RxBaton;
           }
           break;
@@ -548,7 +570,7 @@ void _initIC_Rear(void){
     lastlastTxNum = 99;
     currentTxNum = 0;
     lastTxNum = 54;
-    TxNum = 0;
+    TxNum = 1;
     
     /* Turn on input capture */
     IC4CONbits.ON = 1;
@@ -674,7 +696,7 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR,IPL7SOFT)_ICRearISR(void){
             //referenceTxNum = currentTxNum;
             //printf("%u ", referenceTxNum);
             if ((postTxNum == 0) && (lastTxNum == currentTxNum) && (lastlastTxNum == lastTxNum)) {   //only post one time 
-                //printf("%u\n", referenceTxNum);
+                //printf("%u\n", TxNum);
                 /* PostEvent ES_RX_BATON with param currentTxNum */
                 ThisEvent.EventType = ES_RX_BATON;
                 ThisEvent.EventParam = currentTxNum;
@@ -724,7 +746,7 @@ void __ISR (_INPUT_CAPTURE_2_VECTOR, IPL7SOFT ) IC_Front_Left_ISR ( void ){
             leftdetected = 2;
         }
     } 
-
+    //printf("hi");
     /* Update lastRiseFrontLeft */
     lastRiseFrontLeft = myTimer2.RealTime.buffRead;
     firstRiseFrontLeft = 1;
@@ -788,7 +810,10 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
         var = 4;
         
     }
-    
+    else if ((leftdetected == 2) && (rightdetected == 2)) {
+        ThatEvent.EventType = ES_FREQ_CHANGE;
+        var = 0;
+    }
     else if ((leftdetected == 1) && (rightdetected == 0)){
         ThatEvent.EventType = ES_LEFTDETECT;
         ThatEvent.EventParam = 1;
@@ -806,10 +831,6 @@ void __ISR(_TIMER_4_VECTOR, IPL7SOFT) IC_PostingISR(void){
         var = 1;
     }
     
-    else if ((leftdetected == 2) && (rightdetected == 2)) {
-        ThatEvent.EventType = ES_FREQ_CHANGE;
-        var = 0;
-    }
     
     if (var1 != var){
         PostIR(ThatEvent);
@@ -942,18 +963,19 @@ static void InitSPI(){
 
 /* Helper Functions */
 static void SendLeader(uint8_t message){
-  enqueue(1, message);
+  if(message != 0){
+      enqueue(1, message);
+  }
+  
 }
 
 /* Interrupts */
 // SPI Receipt ISR
 void __ISR(_SPI_1_VECTOR, IPL7SOFT) _SPI1ISR(){
     // Declare static uint8_t var bufRead to store buffer reading
-    static volatile uint8_t bufRead;
-    // Read the byte and then clear the Rx interrupt
-    bufRead = SPI1BUF;
+    uint8_t bufRead = SPI1BUF;
     IFS1CLR = _IFS1_SPI1RXIF_MASK;
-    if (bufRead != 0){
+    if ((bufRead != 0) && (bufRead != 255)){
       ES_Event_t ReceiveEvent;
       ReceiveEvent.EventType = ES_RECEIVE;
       ReceiveEvent.EventParam = bufRead;
@@ -962,7 +984,10 @@ void __ISR(_SPI_1_VECTOR, IPL7SOFT) _SPI1ISR(){
     // Send the next message in the queue if present 
     if(!isQueueEmpty(1)){
       uint8_t message = dequeue(1);
-      SPI1BUF = message;
+      //printf("%u ", message);
+      if((message != 0) && (message != 255)){
+          SPI1BUF = message;
+      }
     } else {
       SPI1BUF = 0;                    // Empty byte if no information to send 
     }
@@ -1063,4 +1088,3 @@ static void StopReceiveRear(){
   IEC0CLR = _IEC0_IC4IE_MASK;
   IC4CONbits.ON = 0;
 }
-
