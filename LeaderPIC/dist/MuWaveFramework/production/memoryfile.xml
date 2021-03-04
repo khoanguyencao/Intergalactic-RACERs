@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?> 
 <project>                                  
-  <executable name="dist/MuWaveFramework/production/LeaderCode.production.elf">                 
+  <executable name="dist/MuWaveFramework/production/LeaderPIC.production.elf">                 
     <memory name="program">                 
       <units>bytes</units>                 
       <length>263312</length>                 
