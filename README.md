@@ -1,8 +1,8 @@
-# ME218B 
+# Intergalactic RACERs
+
+ME218B Project
 
 2020-2021
-
-Intergalactic RACERs
 
 Ashley Gin, Betty Wan, Khoa Cao, Mei Hao
 
